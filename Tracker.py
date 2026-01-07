@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+
+from PileCoordinates import PileCoordinates
+from dataclasses import dataclass, field
+from typing import List
+
+@dataclass
+class Tracker:
+    tracker_id: int
+    piles: List[PileCoordinates] = field(default_factory=list)
+
+    def add_pile(self, pile: PileCoordinates) -> None:
+        """Add a pile to the tracker."""
+        self.piles.append(pile)
+
+    def sort_by_pole_position(self) -> None:
+        """Sort piles by pole position within the tracker."""
+        self.piles.sort(key=lambda p: p.poleInTracker)
+
+    @property
+    def pole_count(self) -> int:
+        """Total number of piles in this tracker."""
+        return len(self.piles)
+
+    def get_xyz(self):
+        """Return X, Y, Z arrays for plotting or analysis."""
+        xs = [p.X for p in self.piles]
+        ys = [p.Y for p in self.piles]
+        zs = [p.Z for p in self.piles]
+        return xs, ys, zs
