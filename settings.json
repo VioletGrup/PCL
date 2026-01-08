@@ -1,0 +1,13 @@
+{
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll.ruff": true,
+        "source.organizeImports.ruff": true
+    },
+    "ruff.enable": true,
+    "ruff.lint.enable": true,
+    "ruff.format.enable": true,
+    // Avoid fighting formatters
+    "python.formatting.provider": "none",
+    "editor.defaultFormatter": "charliermarsh.ruff"
+}
