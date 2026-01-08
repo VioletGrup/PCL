@@ -7,6 +7,23 @@ from PileCoordinates import PileCoordinates
 
 @dataclass
 class Tracker:
+    """
+    Container for managing and analysing a collection of pile coordinates.
+
+    Groups all of the `PileCoordinates` objects under a single
+    tracker ID and provides utilities for adding piles, sorting them by
+    pole position, and extracting coordinate arrays for downstream
+    analysis or plotting.
+
+    Attributes
+    ----------
+    tracker_id : int
+        Unique identifier for the tracker.
+    piles : list[PileCoordinates]
+        List of piles associated with this tracker, ordered arbitrarily
+        until explicitly sorted.
+    """
+
     tracker_id: int
     piles: List[PileCoordinates] = field(default_factory=list)
 
