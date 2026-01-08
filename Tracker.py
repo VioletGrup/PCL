@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-from PileCoordinates import PileCoordinates
 from dataclasses import dataclass, field
 from typing import List
+from PileCoordinates import PileCoordinates
+
 
 @dataclass
 class Tracker:
