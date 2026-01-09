@@ -27,6 +27,10 @@ class Tracker:
 
     tracker_id: int
     piles: List[PileCoordinates] = field(default_factory=list)
+    north_adjacent: bool  # optional
+    south_adjacent: bool  # optional
+    east_adjanct: bool  # optional
+    north_adjacent: bool  # optional
 
     def add_pile(self, pile: PileCoordinates) -> None:
         """Add a pile to the tracker."""
@@ -40,6 +44,10 @@ class Tracker:
     def pole_count(self) -> int:
         """Total number of piles in this tracker."""
         return len(self.piles)
+
+    @property
+    def tracker_length(self) -> float:
+        raise NotImplementedError("This function is not yet implemented.")
 
     def get_xyz(self):
         """Return X, Y, Z arrays for plotting or analysis."""

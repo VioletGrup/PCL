@@ -7,7 +7,14 @@
     "ruff.enable": true,
     "ruff.lint.enable": true,
     "ruff.format.enable": true,
-    // Avoid fighting formatters
     "python.formatting.provider": "none",
-    "editor.defaultFormatter": "charliermarsh.ruff"
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "emeraldwalk.runonsave": {
+        "commands": [
+            {
+                "match": "\\.py$",
+                "cmd": "workbench.action.tasks.runTask Ruff Fix + Format"
+            }
+        ]
+    }
 }
