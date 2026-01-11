@@ -27,10 +27,12 @@ class Tracker:
 
     tracker_id: int
     piles: List[PileCoordinates] = field(default_factory=list)
-    north_adjacent: bool  # optional
-    south_adjacent: bool  # optional
-    east_adjanct: bool  # optional
-    north_adjacent: bool  # optional
+    # north_adjacent: bool  # optional
+    # south_adjacent: bool  # optional
+    # east_adjanct: bool  # optional
+    # north_adjacent: bool  # optional
+
+    # add tracker string
 
     def add_pile(self, pile: PileCoordinates) -> None:
         """Add a pile to the tracker."""
@@ -47,6 +49,7 @@ class Tracker:
 
     @property
     def tracker_length(self) -> float:
+        """Return the total length of the tracker"""  # overhangs?
         raise NotImplementedError("This function is not yet implemented.")
 
     def get_xyz(self):
@@ -55,3 +58,11 @@ class Tracker:
         ys = [p.Y for p in self.piles]
         zs = [p.Z for p in self.piles]
         return xs, ys, zs
+
+    def get_first(self):
+        """Return north most pile in tracker"""
+        return min(self.piles, key=lambda p: p.pole_in_tracker)
+
+    def get_last(self):
+        """Return south most pile in tracker"""
+        return max(self.piles, key=lambda p: p.pole_in_tracker)

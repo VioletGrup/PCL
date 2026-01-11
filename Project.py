@@ -55,6 +55,9 @@ class Project:
     max_height: float
     pile_install_tolerance: float
     max_incline: float
+    target_height: float  # percentage of grading window
+    max_angle_rotation: float
+    tolerance: float
 
     # Terrain-following only (degrees)
     max_segment_deflection_deg: Optional[float] = None
