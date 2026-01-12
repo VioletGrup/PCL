@@ -8,13 +8,39 @@ from Project import Project
 
 
 def _y_intercept(slope: float, x: float, y: float) -> float:
+    """
+    Compute the y-intercept of a line.
+
+    Parameters
+    ----------
+    slope : float
+        Gradient of the line.
+    x : float
+        X-coordinate of a known point on the line.
+    y : float
+        Y-coordinate of a known point on the line.
+
+    Returns
+    -------
+    float
+        Y-intercept of the line.
+    """
     return y - slope * x
 
 
 def _window_by_pile_id(window: list[dict[str, float]]) -> Dict[int, tuple[float, float]]:
     """
-    Convert grading_window output into a lookup:
-    pile_id -> (min, max)
+    Convert grading window data into a lookup dictionary.
+
+    Parameters
+    ----------
+    window : list[dict[str, float]]
+        List of grading window dictionaries containing pile limits.
+
+    Returns
+    -------
+    Dict[int, tuple[float, float]]
+        Dictionary mapping pile_id to (min_height, max_height).
     """
     out: Dict[int, tuple[float, float]] = {}
     for row in window:
@@ -24,10 +50,43 @@ def _window_by_pile_id(window: list[dict[str, float]]) -> Dict[int, tuple[float,
 
 
 def _interpolate_coords(pile: BasePile, slope: float, y_intercept: float) -> float:
+    """
+    Interpolate the elevation of a pile from a linear grading line.
+
+    Parameters
+    ----------
+    pile : BasePile
+        Pile for which the elevation is calculated.
+    slope : float
+        Gradient of the grading line.
+    y_intercept : float
+        Y-intercept of the grading line.
+
+    Returns
+    -------
+    float
+        Interpolated elevation of the pile.
+    """
     return slope * pile.northing + y_intercept
 
 
 def grading_window(project: Project, tracker: BaseTracker) -> list[dict[str, float]]:
+    """
+    Generate the grading window for all piles in a tracker.
+
+    Parameters
+    ----------
+    project : Project
+        Project containing grading constraints.
+    tracker : BaseTracker
+        Tracker whose piles are evaluated.
+
+    Returns
+    -------
+    list[dict[str, float]]
+        List of dictionaries describing grading limits and ground elevation
+        for each pile.
+    """
     window = []
     for pile in tracker.piles:
         window.append(
@@ -42,6 +101,21 @@ def grading_window(project: Project, tracker: BaseTracker) -> list[dict[str, flo
 
 
 def target_height_line(tracker: BaseTracker, project: Project) -> tuple[float, float]:
+    """
+    Set pile elevations along a target height line constrained by project limits.
+
+    Parameters
+    ----------
+    tracker : BaseTracker
+        Tracker whose piles are adjusted.
+    project : Project
+        Project providing target heights and incline constraints.
+
+    Returns
+    -------
+    tuple[float, float]
+        The slope and y-intercept of the target height line.
+    """
     # set the first and last pile in the tracker to the target heights
     first_target_height = tracker.get_first_pile().pile_at_target_height(project)
     last_target_height = tracker.get_last_pile().pile_at_target_height(project)
@@ -71,9 +145,20 @@ def check_within_window(
     window: list[dict[str, float]], tracker: BaseTracker
 ) -> list[dict[str, float]]:
     """
-    Returns a list of piles that are not within the grading window. Empty list
-    => all piles are within window.
-    Assumes tracker.piles have current_elevation set to the target line.
+    Identify piles whose elevations lie outside their grading window.
+
+    Parameters
+    ----------
+    window : list[dict[str, float]]
+        Grading window data for the tracker.
+    tracker : BaseTracker
+        Tracker whose piles are checked.
+
+    Returns
+    -------
+    list[dict[str, float]]
+        List of dictionaries describing piles that violate the grading window.
+        An empty list indicates no violations.
     """
     limits = _window_by_pile_id(window)
 
@@ -104,11 +189,26 @@ def check_within_window(
 
 def sliding_line(
     tracker: BaseTracker,
-    project: Project,
     violating_piles: list[dict[str, float]],
     slope: float,
     y_intercept: float,
 ) -> None:
+    """
+    Slide the grading line vertically to reduce grading window violations.
+
+    Parameters
+    ----------
+    tracker : BaseTracker
+        Tracker whose pile elevations are adjusted.
+    project : Project
+        Project containing grading constraints.
+    violating_piles : list[dict[str, float]]
+        List of piles currently outside the grading window.
+    slope : float
+        Gradient of the grading line.
+    y_intercept : float
+        Current y-intercept of the grading line.
+    """
     # calculate average distance piles are outside the window
     avg_distance = (
         sum(pile["below_by"] + pile["above_by"] for pile in violating_piles) / tracker.pole_count
@@ -123,6 +223,14 @@ def sliding_line(
 
 
 def main(project: Project) -> None:
+    """
+    Run grading optimisation for all trackers in a project.
+
+    Parameters
+    ----------
+    project : Project
+        Project containing trackers and grading constraints.
+    """
     for tracker in project.trackers:
         # determine the grading window for the tracker
         window = grading_window(project, tracker)
@@ -134,7 +242,7 @@ def main(project: Project) -> None:
         # or down to determine its optimal position
         piles_outside = check_within_window(window, tracker)
         if not piles_outside:
-            sliding_line(tracker, project, piles_outside, slope, y_intercept)
+            sliding_line(tracker, piles_outside, slope, y_intercept)
 
         for pile in tracker.piles:
             pile.set_final_elevation(pile.current_elevation)
