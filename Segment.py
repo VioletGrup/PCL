@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from Project import Project
+if TYPE_CHECKING:
+    from Project import Project
 from TerrainFollowingPile import TerrainFollowingPile
 
 

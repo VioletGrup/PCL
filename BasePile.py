@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
-from Project import Project
+if TYPE_CHECKING:
+    from Project import Project
 
 
 @dataclass
@@ -23,8 +25,13 @@ class BasePile:
     pile_in_tracker: int
     flooding_allowance: float
 
+    height: float = field(
+        init=False, default=0.0
+    )  # elevation of the top of the pile, uesd during calcs
     current_elevation: float = field(init=False)
     final_elevation: float = field(init=False)
+    pile_revealed: float = field(init=False, default=0.0)  # height of pile revealed above ground
+    total_height: float = field(init=False, default=0.0)  # final total height of the pile
 
     def __post_init__(self) -> None:
         """
@@ -50,6 +57,14 @@ class BasePile:
         """Set the final elevation of the pile after installation simulation."""
         self.final_elevation = elevation
 
+    def set_total_height(self, height: float) -> None:
+        """Set the total height of the pile after installation simulation."""
+        self.total_height = height
+
+    def set_total_revealed(self) -> None:
+        """Set the total height of the pile revealed above ground after installation simulation."""
+        self.pile_revealed = self.total_height - self.final_elevation
+
     def true_min_height(self, project: Project) -> float:
         """Return the true minimum height of the pile including flooding allowance and tolerance."""
         return (
@@ -66,5 +81,5 @@ class BasePile:
         """Return the target height of the pile based on the grading window percentage."""
         grading_window = self.true_max_height(project) - self.true_min_height(project)
         return self.true_min_height(project) + (
-            grading_window * project.constraints.target_height_percantage / 100
+            grading_window * project.constraints.target_height_percantage
         )
