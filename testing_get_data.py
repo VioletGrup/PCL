@@ -152,7 +152,8 @@ def to_excel(project: Project) -> None:
 #     print(f"Trackers: {len(project.trackers)}")
 #     for t in project.trackers[:3]:
 #         print(
-#             f"  Tracker {t.tracker_id}: piles={t.pole_count} first_pit={t.piles[0].pile_in_tracker}"
+#             f"  Tracker {t.tracker_id}: piles={t.pole_count}
+#                  first_pit={t.piles[0].pile_in_tracker}"
 #         )
 
 #     # Now you can call your grading pipeline:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from typing import List, Tuple, Optional
+from typing import List, Optional, Tuple
 
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string

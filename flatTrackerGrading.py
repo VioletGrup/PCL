@@ -284,7 +284,8 @@ def main(project: Project) -> None:
                 # Function changes the current ground elevation of the piles
                 grading(tracker, piles_outside)
 
-        # Set the final ground elevations, reveal heights and total heights of all piles, some will remain the same
+        # Set the final ground elevations, reveal heights and total heights of all piles,
+        # some will remain the same
         for pile in tracker.piles:
             pile.set_final_elevation(pile.current_elevation)
             pile.set_total_height(pile.height)
@@ -292,7 +293,9 @@ def main(project: Project) -> None:
 
         # for pile in tracker.piles:
         #     print(
-        #         f"pile_id: {pile.pile_id}/{pile.pile_in_tracker}     initial_elevation: {pile.initial_elevation}     final_elevation: {pile.final_elevation}     change: {pile.final_elevation - pile.initial_elevation}"
+        #         f"pile_id: {pile.pile_id}/{pile.pile_in_tracker}     initial_elevation:
+        #           {pile.initial_elevation}     final_elevation: {pile.final_elevation}
+        #           change: {pile.final_elevation - pile.initial_elevation}"
         #     )
 
 
