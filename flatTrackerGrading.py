@@ -5,6 +5,8 @@ from typing import Dict
 from BasePile import BasePile
 from BaseTracker import BaseTracker
 from Project import Project
+from ProjectConstraints import ProjectConstraints
+from testing_get_data import load_project_from_excel
 
 
 def _y_intercept(slope: float, x: float, y: float) -> float:
@@ -28,7 +30,7 @@ def _y_intercept(slope: float, x: float, y: float) -> float:
     return y - slope * x
 
 
-def _window_by_pile_id(window: list[dict[str, float]]) -> Dict[int, tuple[float, float]]:
+def _window_by_pile_in_tracker(window: list[dict[str, float]]) -> Dict[int, tuple[float, float]]:
     """
     Convert grading window data into a lookup dictionary.
 
@@ -44,7 +46,7 @@ def _window_by_pile_id(window: list[dict[str, float]]) -> Dict[int, tuple[float,
     """
     out: Dict[int, tuple[float, float]] = {}
     for row in window:
-        pid = int(row["pile_id"])
+        pid = int(row["pile_in_tracker"])
         out[pid] = (float(row["grading_window_min"]), float(row["grading_window_max"]))
     return out
 
@@ -92,6 +94,7 @@ def grading_window(project: Project, tracker: BaseTracker) -> list[dict[str, flo
         window.append(
             {
                 "pile_id": pile.pile_id,
+                "pile_in_tracker": pile.pile_in_tracker,
                 "grading_window_min": pile.true_min_height(project),
                 "grading_window_max": pile.true_max_height(project),
                 "ground_elevation": pile.current_elevation,
@@ -117,27 +120,29 @@ def target_height_line(tracker: BaseTracker, project: Project) -> tuple[float, f
         The slope and y-intercept of the target height line.
     """
     # set the first and last pile in the tracker to the target heights
-    first_target_height = tracker.get_first_pile().pile_at_target_height(project)
-    last_target_height = tracker.get_last_pile().pile_at_target_height(project)
-
+    first_target_height = tracker.get_first().pile_at_target_height(project)
+    last_target_height = tracker.get_last().pile_at_target_height(project)
     # deterimine the equation of the line at target height
     slope = (last_target_height - first_target_height) / (
-        tracker.get_last_pile().northing - tracker.get_first_pile().northing
+        tracker.get_last().northing - tracker.get_first().northing
     )
 
     # if the slope exceeds the maximum incline, set it to the maximum incline
-    slope = min(slope, project.constraints.max_incline)
+    if abs(slope) > abs(project.constraints.max_incline):
+        if slope > 0:
+            slope = project.constraints.max_incline
+        else:
+            slope = -project.constraints.max_incline
 
     y_intercept = _y_intercept(
         slope,
-        tracker.get_first_pile().northing,
+        tracker.get_first().northing,
         first_target_height,
     )
 
     # set each pile to the target height based on the linear equation
     for pile in tracker.piles:
-        pile.current_elevation = _interpolate_coords(pile, slope, y_intercept)
-
+        pile.height = _interpolate_coords(pile, slope, y_intercept)
     return slope, y_intercept
 
 
@@ -160,23 +165,23 @@ def check_within_window(
         List of dictionaries describing piles that violate the grading window.
         An empty list indicates no violations.
     """
-    limits = _window_by_pile_id(window)
+    limits = _window_by_pile_in_tracker(window)
 
     violations = []
     for pile in tracker.piles:
-        pid = pile.pile_id
+        pid = pile.pile_in_tracker
         if pid not in limits:
             raise ValueError(f"Pile id {pid} not found in grading window")
 
         wmin, wmax = limits[pid]
-        height = pile.current_elevation
+        height = pile.height
 
         # if the pile is outside the window, add it to the list and find how far away it is
         if not wmin <= height <= wmax:
             violations.append(
                 {
                     "pile_id": pid,
-                    "target_elevation": height,
+                    "target_height": height,
                     "grading_window_min": wmin,
                     "grading_window_max": wmax,
                     "below_by": min(0.0, height - wmin),
@@ -209,17 +214,27 @@ def sliding_line(
     y_intercept : float
         Current y-intercept of the grading line.
     """
-    # calculate average distance piles are outside the window
-    avg_distance = (
-        sum(pile["below_by"] + pile["above_by"] for pile in violating_piles) / tracker.pole_count
-    )
+    # calculate maximum distance piles are outside the window
+    max_distance_pile = max(violating_piles, key=lambda x: abs(x["below_by"] + x["above_by"]))
+    max_distance = max_distance_pile["below_by"] + max_distance_pile["above_by"]
+    movement_limit = (
+        violating_piles[0]["grading_window_max"] - violating_piles[0]["grading_window_min"]
+    ) / 2
 
-    # add the average distance to the y_intercept to slide the line up or down
-    new_y_intercept = y_intercept + avg_distance
+    # determine how much to slide the line by (capped by movement limit)
+    if max_distance > movement_limit:
+        movement = movement_limit
+    elif max_distance < -movement_limit:
+        movement = -movement_limit
+    else:
+        movement = max_distance
+
+    # update the y-intercept based on the required movement
+    new_y_intercept = y_intercept - movement
 
     # update the elevations of each pile based on the new line
     for pile in tracker.piles:
-        pile.current_elevation = _interpolate_coords(pile, slope, new_y_intercept)
+        pile.height = _interpolate_coords(pile, slope, new_y_intercept)
 
 
 def grading(tracker: BaseTracker, violating_piles: list[dict[str, float]]) -> None:
@@ -258,6 +273,7 @@ def main(project: Project) -> None:
         # if at least one of the piles is outside the window, slide the line up
         # or down to determine its optimal position
         piles_outside = check_within_window(window, tracker)
+
         if piles_outside:
             sliding_line(tracker, piles_outside, slope, y_intercept)
 
@@ -267,6 +283,47 @@ def main(project: Project) -> None:
                 # Function changes the current ground elevation of the piles
                 grading(tracker, piles_outside)
 
-        # Set the final ground elevations of all piles, some will remain the same
+        # Set the final ground elevations, reveal heights and total heights of all piles, some will remain the same
         for pile in tracker.piles:
             pile.set_final_elevation(pile.current_elevation)
+            pile.set_total_height(pile.height)
+            pile.set_total_revealed()
+
+        for pile in tracker.piles:
+            print(
+                f"pile_id: {pile.pile_id}/{pile.pile_in_tracker}     initial_elevation: {pile.initial_elevation}     final_elevation: {pile.final_elevation}     change: {pile.final_elevation - pile.initial_elevation}"
+            )
+
+
+if __name__ == "__main__":
+    constraints = ProjectConstraints(
+        min_reveal_height=1.375,
+        max_reveal_height=1.675,
+        pile_install_tolerance=0.0,
+        max_incline=0.15,
+        target_height_percantage=0.5,
+        max_angle_rotation=0.0,
+    )
+
+    # -------------------------------
+    # Load project from Excel
+    # -------------------------------
+    excel_path = "Test Piling Info.xlsx"  # change if needed
+    sheet_name = "Piling information"  # change to your actual sheet name
+
+    project = load_project_from_excel(
+        excel_path=excel_path,
+        sheet_name=sheet_name,
+        project_name="Punchs_Creek",
+        project_type="standard",
+        constraints=constraints,
+    )
+
+    # Quick sanity prints
+    print(f"Loaded project: {project.name}")
+    print(f"Trackers: {len(project.trackers)}")
+    for t in project.trackers[:3]:
+        print(
+            f"  Tracker {t.tracker_id}: piles={t.pole_count} first_pit={t.piles[0].pile_in_tracker}"
+        )
+    main(project)

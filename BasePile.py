@@ -29,9 +29,9 @@ class BasePile:
         init=False, default=0.0
     )  # elevation of the top of the pile, uesd during calcs
     current_elevation: float = field(init=False)
-    final_elevation: float = field(init=False)
+    final_elevation: float = field(init=False)  # final Z coordinate
     pile_revealed: float = field(init=False, default=0.0)  # height of pile revealed above ground
-    total_height: float = field(init=False, default=0.0)  # final total height of the pile
+    total_height: float = field(init=False, default=0.0)  # final Z coordinate height of the pile
 
     def __post_init__(self) -> None:
         """
@@ -69,13 +69,18 @@ class BasePile:
         """Return the true minimum height of the pile including flooding allowance and tolerance."""
         return (
             self.current_elevation
+            + project.constraints.min_reveal_height
             + self.flooding_allowance
             + project.constraints.pile_install_tolerance / 2
         )
 
     def true_max_height(self, project: Project) -> float:
         """Return the true maximum height of the pile including tolerance."""
-        return self.current_elevation - project.constraints.pile_install_tolerance / 2
+        return (
+            self.current_elevation
+            + project.constraints.max_reveal_height
+            - project.constraints.pile_install_tolerance / 2
+        )
 
     def pile_at_target_height(self, project: Project) -> float:
         """Return the target height of the pile based on the grading window percentage."""

@@ -17,7 +17,7 @@ class TrackerABC(ABC):
 
     def sort_by_pole_position(self) -> None:
         """Sort piles by pole position within the tracker."""
-        self.piles.sort(key=lambda p: p.pole_in_tracker)
+        self.piles.sort(key=lambda p: p.pile_in_tracker)
 
     @property
     def pole_count(self) -> int:
