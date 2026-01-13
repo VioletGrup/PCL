@@ -6,7 +6,8 @@ from BasePile import BasePile
 from BaseTracker import BaseTracker
 from Project import Project
 from ProjectConstraints import ProjectConstraints
-from testing_get_data import load_project_from_excel
+from testing_compare import compare_results
+from testing_get_data import load_project_from_excel, to_excel
 
 
 def _y_intercept(slope: float, x: float, y: float) -> float:
@@ -289,13 +290,14 @@ def main(project: Project) -> None:
             pile.set_total_height(pile.height)
             pile.set_total_revealed()
 
-        for pile in tracker.piles:
-            print(
-                f"pile_id: {pile.pile_id}/{pile.pile_in_tracker}     initial_elevation: {pile.initial_elevation}     final_elevation: {pile.final_elevation}     change: {pile.final_elevation - pile.initial_elevation}"
-            )
+        # for pile in tracker.piles:
+        #     print(
+        #         f"pile_id: {pile.pile_id}/{pile.pile_in_tracker}     initial_elevation: {pile.initial_elevation}     final_elevation: {pile.final_elevation}     change: {pile.final_elevation - pile.initial_elevation}"
+        #     )
 
 
 if __name__ == "__main__":
+    print("Initialising project...")
     constraints = ProjectConstraints(
         min_reveal_height=1.375,
         max_reveal_height=1.675,
@@ -305,9 +307,9 @@ if __name__ == "__main__":
         max_angle_rotation=0.0,
     )
 
-    # -------------------------------
     # Load project from Excel
-    # -------------------------------
+
+    print("Loading data from Excel...")
     excel_path = "Test Piling Info.xlsx"  # change if needed
     sheet_name = "Piling information"  # change to your actual sheet name
 
@@ -319,11 +321,9 @@ if __name__ == "__main__":
         constraints=constraints,
     )
 
-    # Quick sanity prints
-    print(f"Loaded project: {project.name}")
-    print(f"Trackers: {len(project.trackers)}")
-    for t in project.trackers[:3]:
-        print(
-            f"  Tracker {t.tracker_id}: piles={t.pole_count} first_pit={t.piles[0].pile_in_tracker}"
-        )
+    print("Start Grading...")
     main(project)
+    to_excel(project)
+    print("Results saved to final_pile_elevations.xlsx")
+    print("Comparing results to expected outcome...")
+    compare_results()

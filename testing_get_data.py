@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Dict
 
 import pandas as pd
 
+from BasePile import BasePile
+from BaseTracker import BaseTracker
 from Project import Project
 from ProjectConstraints import ProjectConstraints
-from BaseTracker import BaseTracker
-from BasePile import BasePile
 
 
 def load_project_from_excel(
@@ -93,6 +92,32 @@ def load_project_from_excel(
         project.trackers.append(t)
 
     return project
+
+
+def to_excel(project: Project) -> None:
+    rows = []
+
+    for tracker in project.trackers:
+        for pile in tracker.piles:
+            rows.append(
+                {
+                    "tracker_id": tracker.tracker_id,
+                    "pile_id": pile.pile_id,
+                    "pile_in_tracker": pile.pile_in_tracker,
+                    "northing": pile.northing,
+                    "easting": pile.easting,
+                    "initial_elevation": pile.initial_elevation,
+                    "final_elevation": pile.final_elevation,
+                    "change": pile.final_elevation - pile.initial_elevation,
+                    "total_height": pile.total_height,
+                    "total_revealed": pile.pile_revealed,
+                }
+            )
+
+    df = pd.DataFrame(rows)
+
+    output_path = "final_pile_elevations.xlsx"
+    df.to_excel(output_path, index=False)
 
 
 # def main() -> None:
