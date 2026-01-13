@@ -172,7 +172,7 @@ def check_within_window(
         height = pile.current_elevation
 
         # if the pile is outside the window, add it to the list and find how far away it is
-        if not (wmin <= height <= wmax):
+        if not wmin <= height <= wmax:
             violations.append(
                 {
                     "pile_id": pid,
@@ -222,6 +222,23 @@ def sliding_line(
         pile.current_elevation = _interpolate_coords(pile, slope, new_y_intercept)
 
 
+def grading(tracker: BaseTracker, violating_piles: list[dict[str, float]]) -> None:
+    """
+    Determine the new ground elevations for piles that fall outside the allowed grading window
+
+    Parameters
+    ----------
+    tracker : BaseTracker
+        Tracker that the violating piles belong to
+    violating_piles : list[dict[str, float]]
+        List of piles currently outside the grading window.
+    """
+    for pile in violating_piles:
+        p = tracker.get_pile_in_tracker(pile["pile_id"])
+        movement = pile["below_by"] + pile["above_by"]
+        p.set_current_elevation(p.current_elevation + movement)
+
+
 def main(project: Project) -> None:
     """
     Run grading optimisation for all trackers in a project.
@@ -241,8 +258,15 @@ def main(project: Project) -> None:
         # if at least one of the piles is outside the window, slide the line up
         # or down to determine its optimal position
         piles_outside = check_within_window(window, tracker)
-        if not piles_outside:
+        if piles_outside:
             sliding_line(tracker, piles_outside, slope, y_intercept)
 
+            # if at least one of the piles is outside the window, begin grading
+            piles_outside = check_within_window(window, tracker)
+            if piles_outside:
+                # Function changes the current ground elevation of the piles
+                grading(tracker, piles_outside)
+
+        # Set the final ground elevations of all piles, some will remain the same
         for pile in tracker.piles:
             pile.set_final_elevation(pile.current_elevation)
