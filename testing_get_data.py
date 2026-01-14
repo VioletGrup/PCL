@@ -59,8 +59,10 @@ def load_project_from_excel(
     )
 
     trackers_by_id: Dict[int, BaseTracker] = {}
+    piles = 0  # REMOVE LATER TESTING ONLY
 
     for _, row in df.iterrows():
+        piles += 1  # REMOVE LATER TESTING ONLY
         tracker_num = int(row[tracker_col])
         pit = int(row[pile_in_tracker_col])
 
@@ -72,7 +74,8 @@ def load_project_from_excel(
         if tracker_num not in trackers_by_id:
             trackers_by_id[tracker_num] = BaseTracker(tracker_id=tracker_num)
 
-        pile_id = float(f"{tracker_num}.{pit}")
+        # pile_id = float(f"{tracker_num}.{pit}")  # REAL ONE
+        pile_id = piles  # REMOVE LATER TESTING ONLY
 
         trackers_by_id[tracker_num].piles.append(
             BasePile(
