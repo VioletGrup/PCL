@@ -2,12 +2,12 @@
 
 from pathlib import Path
 
-from PileCoordinates import PileCoordinates
+from BasePile import BasePile
+from BaseTracker import BaseTracker
 from Project import Project
-from Tracker import Tracker
 
 
-def fetch_coords_from_sheet(project: Project, excel_file: Path) -> Tracker:
+def fetch_coords_from_sheet(project: Project, excel_file: Path) -> BaseTracker:
     """
     Read pile coordinate data from an Excel file and construct a Tracker object.
 
@@ -54,7 +54,7 @@ def plot_farm(
     raise NotImplementedError("This function is not yet implemented.")
 
 
-def find_lower(project: Project, tracker_id: int) -> float:  # may move to pile or tracker class
+def find_lower(project: Project, pile_id: int) -> float:  # may move to pile or tracker class
     """
     Determine the lower allowable elevation bound for a tracker.
 
@@ -63,24 +63,18 @@ def find_lower(project: Project, tracker_id: int) -> float:  # may move to pile 
     project : Project
         Project containing global height and tolerance constraints.
     tracker_id : int
-        Identifier of the tracker being evaluated.
+        Identifier of the pile being evaluated.
 
     Returns
     -------
     float
-        Lower elevation limit for the specified tracker.
-
-    Notes
-    -----
-    Typically computed using the project’s minimum pile height and
-    installation tolerance relative to ground elevation.
+        Lower elevation limit for the specified tracker including flooding and tolerances
     """
+    # return project.constraints.min_height +
     raise NotImplementedError("This function is not yet implemented.")
 
 
-def find_upper(
-    project: Project, tracker_id: int
-) -> float:  # may move to pile or tracker class class
+def find_upper(project: Project, tracker_id: int) -> float:  # may move to pile or tracker class
     """
     Determine the upper allowable elevation bound for a tracker.
 
@@ -104,7 +98,7 @@ def find_upper(
     raise NotImplementedError("This function is not yet implemented.")
 
 
-def plot_inital_tracker(tracker: Tracker) -> None:
+def plot_inital_tracker(tracker: BaseTracker) -> None:
     """
     Plot the initial (unoptimized) elevation profile of a tracker.
 
@@ -124,7 +118,7 @@ def plot_inital_tracker(tracker: Tracker) -> None:
     raise NotImplementedError("This function is not yet implemented.")
 
 
-def get_median_elevation(pile: PileCoordinates) -> float:  # may move to pile class
+def get_target_elevation(pile: BasePile) -> float:  # may move to pile class
     # rather than picking 50% allow for input to choose where it will be
     """
     Compute the median elevation from a list of pile coordinates.

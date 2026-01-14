@@ -33,7 +33,7 @@ class PileCoordinates:
     northing: float
     easting: float
     initial_elevation: float
-    pole_id: int
+    pole_id: float
     pole_in_tracker: int
     flooding_allowance: float
 
