@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Iterable
+
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 

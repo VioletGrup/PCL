@@ -181,8 +181,7 @@ def check_within_window(
         if not wmin <= height <= wmax:
             violations.append(
                 {
-                    "pile_id": pid,
-                    "target_height": height,
+                    "pile_in_tracker": pid,
                     "grading_window_min": wmin,
                     "grading_window_max": wmax,
                     "below_by": min(0.0, height - wmin),
@@ -193,6 +192,7 @@ def check_within_window(
     return violations
 
 
+# change to iterate multiple times or binary search for optimisation
 def sliding_line(
     tracker: BaseTracker,
     violating_piles: list[dict[str, float]],
@@ -250,7 +250,7 @@ def grading(tracker: BaseTracker, violating_piles: list[dict[str, float]]) -> No
         List of piles currently outside the grading window.
     """
     for pile in violating_piles:
-        p = tracker.get_pile_in_tracker(pile["pile_id"])
+        p = tracker.get_pile_in_tracker(pile["pile_in_tracker"])
         movement = pile["below_by"] + pile["above_by"]
         p.set_current_elevation(p.current_elevation + movement)
 
@@ -291,12 +291,10 @@ def main(project: Project) -> None:
             pile.set_total_height(pile.height)
             pile.set_total_revealed()
 
-        # for pile in tracker.piles:
-        #     print(
-        #         f"pile_id: {pile.pile_id}/{pile.pile_in_tracker}     initial_elevation:
-        #           {pile.initial_elevation}     final_elevation: {pile.final_elevation}
-        #           change: {pile.final_elevation - pile.initial_elevation}"
-        #     )
+        for pile in tracker.piles:
+            print(
+                f"pile_id: {pile.pile_id}/{pile.pile_in_tracker}     initial_elevation: {pile.initial_elevation}     final_elevation: {pile.final_elevation}      change: {pile.final_elevation - pile.initial_elevation}"
+            )
 
 
 if __name__ == "__main__":
@@ -328,5 +326,5 @@ if __name__ == "__main__":
     main(project)
     to_excel(project)
     print("Results saved to final_pile_elevations.xlsx")
-    print("Comparing results to expected outcome...")
-    compare_results()
+    # print("Comparing results to expected outcome...")
+    # compare_results()

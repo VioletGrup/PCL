@@ -14,6 +14,7 @@ from TerrainFollowingPile import TerrainFollowingPile
 class Segment:
     """Segment between two piles."""
 
+    segment_id: int
     start_pile: TerrainFollowingPile
     end_pile: TerrainFollowingPile
 
@@ -28,10 +29,14 @@ class Segment:
         run = self.length()
         if run == 0:
             return float("inf")
-        rise = self.end_pile.current_elevation - self.start_pile.current_elevation
+        rise = self.end_pile.height - self.start_pile.height
         return rise / run
 
-    def max_vertical_movement(self, project: Project) -> float:
-        """Return the maximum vertical movement based on the projects max segment deflection"""
-        angle = math.radians(project.constraints.max_segment_deflection_deg)
-        return math.tan(angle) * self.length()
+    def height_difference(self) -> float:
+        """Return the height difference between the start and end piles, -ve if the start pile is
+        higher than the last pile."""
+        return self.start_pile.height - self.end_pile.height
+
+    def degree_of_deflection(self) -> float:
+        """Uses the slope of the segment to determine the angle of deflection"""
+        return math.tan(self.slope())
