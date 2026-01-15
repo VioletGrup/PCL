@@ -46,7 +46,7 @@ class TrackerABC(ABC):
 
     def get_pile_in_tracker(self, pile_in_tracker: int) -> BasePile:
         """Return pile with specified pole_id"""
-        if 0 <= pile_in_tracker <= len(self.piles):
+        if 1 <= pile_in_tracker <= len(self.piles):
             return self.piles[pile_in_tracker - 1]
         raise ValueError(
             f"Pile with pole_id {pile_in_tracker} not found in tracker {self.tracker_id}"

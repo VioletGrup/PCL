@@ -120,6 +120,13 @@ def target_height_line(tracker: BaseTracker, project: Project) -> tuple[float, f
     tuple[float, float]
         The slope and y-intercept of the target height line.
     """
+    # CASE 1: Single pile tracker
+    if len(tracker.piles) == 1:
+        pile = tracker.piles[0]
+        target_height = pile.pile_at_target_height(project)
+        pile.height = target_height
+        return 0.0, target_height  # Zero slope, height is y-intercept
+
     # set the first and last pile in the tracker to the target heights
     first_target_height = tracker.get_first().pile_at_target_height(project)
     last_target_height = tracker.get_last().pile_at_target_height(project)
@@ -265,6 +272,9 @@ def main(project: Project) -> None:
         Project containing trackers and grading constraints.
     """
     for tracker in project.trackers:
+        if not tracker.piles:
+            continue  # skip to the next tracker if the current one is empty
+
         # determine the grading window for the tracker
         window = grading_window(project, tracker)
 
