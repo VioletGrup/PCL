@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 
-from typing import Dict, Tuple
-
 from dataclasses import dataclass
+from typing import Dict
+
 from BasePile import BasePile
 from BaseTracker import BaseTracker
 from Project import Project
 from ProjectConstraints import ProjectConstraints
-from testing_compare import compare_results
 from testing_get_data import load_project_from_excel, to_excel
 
 
@@ -733,7 +732,9 @@ def main(project: Project) -> None:
 
         # for pile in tracker.piles:
         #     print(
-        #         f"pile_id: {pile.pile_id}/{pile.pile_in_tracker}     initial_elevation: {pile.initial_elevation}     final_elevation: {pile.final_elevation}      change: {pile.final_elevation - pile.initial_elevation}"
+        #         f"pile_id: {pile.pile_id}/{pile.pile_in_tracker}     initial_elevation:
+        # {pile.initial_elevation}     final_elevation: {pile.final_elevation}
+        # change: {pile.final_elevation - pile.initial_elevation}"
         #     )
 
 

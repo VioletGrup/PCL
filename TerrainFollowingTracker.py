@@ -3,7 +3,6 @@
 from dataclasses import dataclass, field
 from typing import List
 
-
 from BaseTracker import BaseTracker
 from Segment import Segment
 from TerrainFollowingPile import TerrainFollowingPile

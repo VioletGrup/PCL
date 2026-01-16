@@ -2,12 +2,12 @@
 
 
 from typing import Dict
+
 from Project import Project
 from ProjectConstraints import ProjectConstraints
 from TerrainFollowingPile import TerrainFollowingPile
 from TerrainFollowingTracker import TerrainFollowingTracker
-from testing_compare_tf import compare_results
-from testing_get_data_tf import load_project_from_excel, to_excel
+from testing_get_data_tf import load_project_from_excel
 
 
 def _y_intercept(slope: float, x: float, y: float) -> float:
@@ -434,7 +434,8 @@ def slope_correction(
                         s["slope_delta"] - project.max_strict_segment_slope_change
                     )
                     # print(
-                    #     1, pile.pile_id, pile.height, correction, segment.length(), s["slope_delta"]
+                    #     1, pile.pile_id, pile.height, correction, segment.length(),
+                    #     s["slope_delta"]
                     # )
                 elif s["slope_delta"] < 0:
                     # downwards slope is steeper than allowed, raise the pile
@@ -442,7 +443,8 @@ def slope_correction(
                         s["slope_delta"] + project.max_strict_segment_slope_change
                     )
                     # print(
-                    #     2, pile.pile_id, pile.height, correction, segment.length(), s["slope_delta"]
+                    #     2, pile.pile_id, pile.height, correction, segment.length(),
+                    #     s["slope_delta"]
                     # )
                 else:
                     correction = 0.0
@@ -498,7 +500,9 @@ def main(project: Project) -> None:
         #   PRINT FOR TESTING
         # for pile in tracker.piles:
         #     print(
-        #         f"{pile.pile_id} IZ: {pile.initial_elevation} FZ: {pile.final_elevation} change: {pile.final_elevation - pile.initial_elevation} height: {pile.total_height}"
+        #         f"{pile.pile_id} IZ: {pile.initial_elevation} FZ: {pile.final_elevation}
+        #         change: {pile.final_elevation - pile.initial_elevation} height:
+        #         {pile.total_height}"
         #     )
 
 
