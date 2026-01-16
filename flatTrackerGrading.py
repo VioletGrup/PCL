@@ -724,12 +724,12 @@ def main(project: Project) -> None:
     if piles_outside:
         grading(tracker, piles_outside)
 
-        # Set the final ground elevations, reveal heights and total heights of all piles,
-        # some will remain the same
-        for pile in tracker.piles:
-            pile.set_final_elevation(pile.current_elevation)
-            pile.set_total_height(pile.height)
-            pile.set_total_revealed()
+    # Set the final ground elevations, reveal heights and total heights of all piles,
+    # some will remain the same
+    for pile in tracker.piles:
+        pile.set_final_elevation(pile.current_elevation)
+        pile.set_total_height(pile.height)
+        pile.set_total_revealed()
 
         # for pile in tracker.piles:
         #     print(
