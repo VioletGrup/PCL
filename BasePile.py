@@ -71,7 +71,7 @@ class BasePile:
             self.current_elevation
             + project.constraints.min_reveal_height
             + self.flooding_allowance
-            + project.constraints.pile_install_tolerance / 2
+            + project.constraints.pile_install_tolerance
         )
 
     def true_max_height(self, project: Project) -> float:
@@ -79,7 +79,7 @@ class BasePile:
         return (
             self.current_elevation
             + project.constraints.max_reveal_height
-            - project.constraints.pile_install_tolerance / 2
+            - project.constraints.pile_install_tolerance
         )
 
     def pile_at_target_height(self, project: Project) -> float:
@@ -87,4 +87,14 @@ class BasePile:
         grading_window = self.true_max_height(project) - self.true_min_height(project)
         return self.true_min_height(project) + (
             grading_window * project.constraints.target_height_percantage
+        )
+
+    def max_height_no_tolerance(self, project: Project) -> float:
+        """ "Return the maximum height of the pile not including the tolerance"""
+        return self.current_elevation + project.constraints.max_reveal_height
+
+    def min_height_no_tolerance(self, project: Project) -> float:
+        """Return the minimum height of the pile not including the tolerance"""
+        return (
+            self.current_elevation + project.constraints.min_reveal_height + self.flooding_allowance
         )
