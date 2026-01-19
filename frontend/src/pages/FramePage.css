@@ -1,0 +1,135 @@
+.fp-shell {
+  position: fixed;
+  inset: 0;
+  background: #f6f7fb;
+  font-family: Arial, sans-serif;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.fp-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.fp-link {
+  text-decoration: none;
+  color: #334155;
+  font-weight: 900;
+  width: fit-content;
+}
+
+.fp-title {
+  margin: 10px 0 0;
+  font-size: 28px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.fp-subtitle {
+  color: #475569;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.fp-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.fp-chip {
+  background: white;
+  border: 1px solid #e8eaf2;
+  border-radius: 14px;
+  padding: 10px 12px;
+  min-width: 140px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+}
+
+.fp-chip-label {
+  color: #64748b;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.fp-chip-value {
+  color: #0f172a;
+  font-weight: 900;
+  margin-top: 4px;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.fp-content-refined {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: white;
+  border: 1px solid #e8eaf2;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+.fp-plot-section-full {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.fp-violations-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(255, 245, 245, 0.95);
+  border: 1px solid #ffa8a8;
+  border-radius: 8px;
+  padding: 12px 16px;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.fp-violations-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #c92a2a;
+}
+
+.fp-violations-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 12px;
+  color: #c92a2a;
+  font-weight: 700;
+  list-style-type: disc;
+}
+
+.fp-error {
+  padding: 40px;
+  text-align: center;
+  font-weight: 900;
+  color: #7a1a1a;
+}
+
+.fp-btn {
+  margin-top: 20px;
+  padding: 10px 20px;
+  background: #0f172a;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
