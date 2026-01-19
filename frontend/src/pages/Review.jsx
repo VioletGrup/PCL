@@ -111,6 +111,7 @@ export default function Review() {
     const { matchedSheetName, rows } = await readPilingRows(bomFile);
 
     let headerRowIndex = -1;
+    let isFallback = false;
 
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i] || [];
@@ -121,15 +122,17 @@ export default function Review() {
       const yH = norm(r[idx.y]);
       const zH = norm(r[idx.z]);
 
-      const tableOk = tableH === "table";
-      const poleOk = poleH === "pole";
-      const xOk = xH === "x";
-      const yOk = yH === "y";
+      // Loosen matching: allow EXACT or INCLUDES (aliases)
+      const tableOk = tableH === "table" || tableH.includes("table") || tableH.includes("tracker") || tableH.includes("frame");
+      const poleOk = poleH === "pole" || poleH.includes("pole") || poleH.includes("pile");
+      const xOk = xH === "x" || xH.includes("east");
+      const yOk = yH === "y" || yH.includes("north");
       const zOk =
-        zH === "z terrain enter" ||
         zH === "z" ||
+        (zH.includes("z") && zH.includes("enter")) ||
         zH.includes("terrain") ||
-        (zH.includes("z") && zH.includes("enter"));
+        zH.includes("ground") ||
+        zH.includes("elev");
 
       if (tableOk && poleOk && xOk && yOk && zOk) {
         headerRowIndex = i;
@@ -138,15 +141,17 @@ export default function Review() {
     }
 
     if (headerRowIndex === -1) {
-      throw new Error(
-        `Could not find header row using mapping Frame=${frameCol}, Pole=${poleCol}, X=${xCol}, Y=${yCol}, Z=${zCol}.`
-      );
+      // If we couldn't find a header row, don't crash.
+      // Start from Row 0 and let the user manually fix the mapping.
+      headerRowIndex = 0;
+      isFallback = true;
     }
 
     const startIndex = headerRowIndex + 1;
-    persistSafely("pcl_data_start_index", String(startIndex)); // tiny, safe
+    persistSafely("pcl_data_start_index", String(startIndex));
 
-    return extractColumnsNoHeaderFromRows(rows, idx, startIndex, matchedSheetName);
+    const result = extractColumnsNoHeaderFromRows(rows, idx, startIndex, matchedSheetName);
+    return { ...result, isFallback };
   }
 
   /**
@@ -214,7 +219,7 @@ export default function Review() {
     setError("");
     setStatus("");
 
-    // restore mapping letters if saved
+    // 1. restore mapping letters if saved (always useful)
     try {
       const saved = JSON.parse(localStorage.getItem("pcl_mapping_letters") || "null");
       if (saved?.frame) setFrameCol(String(saved.frame).toUpperCase());
@@ -226,7 +231,63 @@ export default function Review() {
       // ignore
     }
 
-    // prefer localStorage columns (instant)
+    // 2. PRIORITY: If we have a file in state, it's a new upload. Extract from it.
+    const bomFile = state?.bomFile || null;
+    if (bomFile) {
+      (async () => {
+        try {
+          setStatus("Loading sheet…");
+
+          const idx = {
+            frame: letterToColIndex(frameCol) ?? 0, // A
+            pole: letterToColIndex(poleCol) ?? 2,  // C
+            x: letterToColIndex(xCol) ?? 3,        // D
+            y: letterToColIndex(yCol) ?? 4,        // E
+            z: letterToColIndex(zCol) ?? 8,        // I
+          };
+
+          const { matchedSheetName, outFrame, outPole, outX, outY, outZ, isFallback } =
+            await extractColumnsDefault(bomFile, idx);
+
+          setFileName(state?.fileName || bomFile.name || "");
+          setSheetName(matchedSheetName);
+
+          setFrame(outFrame);
+          setPole(outPole);
+          setX(outX);
+          setY(outY);
+          setZ(outZ);
+
+          if (isFallback) {
+            setStatus("Note: Headers not found automatically. Please verify column assignments below.");
+          } else {
+            setStatus("");
+          }
+
+          // cache for refresh-safe (best effort)
+          persistSafely("pcl_columns_frame", JSON.stringify(outFrame));
+          persistSafely("pcl_columns_pole", JSON.stringify(outPole));
+          persistSafely("pcl_columns_x", JSON.stringify(outX));
+          persistSafely("pcl_columns_y", JSON.stringify(outY));
+          persistSafely("pcl_columns_z", JSON.stringify(outZ));
+
+          persistSafely(
+            "pcl_config",
+            JSON.stringify({
+              fileName: state?.fileName || bomFile.name,
+              sheetName: matchedSheetName,
+              trackerType: "flat",
+            })
+          );
+        } catch (e) {
+          setStatus("");
+          setError(e?.message || "Failed to read BOM file.");
+        }
+      })();
+      return;
+    }
+
+    // 3. FALLBACK: Prefer localStorage columns if no file in state (e.g. refresh)
     try {
       const frameLS = JSON.parse(localStorage.getItem("pcl_columns_frame") || "[]");
       const poleLS = JSON.parse(localStorage.getItem("pcl_columns_pole") || "[]");
@@ -235,12 +296,12 @@ export default function Review() {
       const zLS = JSON.parse(localStorage.getItem("pcl_columns_z") || "[]");
       const cfg = JSON.parse(localStorage.getItem("pcl_config") || "{}");
 
-      setFileName(state?.fileName || cfg.fileName || "");
-      setSheetName(cfg.sheetName || "Piling information");
-      setTrackerType(cfg.trackerType || "flat");
-
       if (poleLS.length && xLS.length && yLS.length && zLS.length) {
-        setFrame(frameLS); // may be empty on older runs; that's ok
+        setFileName(cfg.fileName || "");
+        setSheetName(cfg.sheetName || "Piling information");
+        setTrackerType(cfg.trackerType || "flat");
+
+        setFrame(frameLS);
         setPole(poleLS);
         setX(xLS);
         setY(yLS);
@@ -248,78 +309,11 @@ export default function Review() {
         return;
       }
     } catch {
-      // ignore; we will try extracting from bomFile next
+      // ignore
     }
 
-    // if no localStorage columns yet, extract from bomFile in navigation state
-    const bomFile = state?.bomFile || null;
-    if (!bomFile) {
-      setError("No BOM file found. Go back to Uploads and continue again.");
-      return;
-    }
-
-    (async () => {
-      try {
-        setStatus("Loading sheet…");
-
-        const idx = {
-          frame: letterToColIndex(frameCol) ?? 0, // A
-          pole: letterToColIndex(poleCol) ?? 2,  // C
-          x: letterToColIndex(xCol) ?? 3,        // D
-          y: letterToColIndex(yCol) ?? 4,        // E
-          z: letterToColIndex(zCol) ?? 8,        // I
-        };
-
-        const { matchedSheetName, outFrame, outPole, outX, outY, outZ } =
-          await extractColumnsDefault(bomFile, idx);
-
-        setFileName(state?.fileName || bomFile.name || "");
-        setSheetName(matchedSheetName);
-
-        setFrame(outFrame);
-        setPole(outPole);
-        setX(outX);
-        setY(outY);
-        setZ(outZ);
-
-        setStatus("");
-
-        // cache for refresh-safe (best effort)
-        const okF = persistSafely("pcl_columns_frame", JSON.stringify(outFrame));
-        const ok1 = persistSafely("pcl_columns_pole", JSON.stringify(outPole));
-        const ok2 = persistSafely("pcl_columns_x", JSON.stringify(outX));
-        const ok3 = persistSafely("pcl_columns_y", JSON.stringify(outY));
-        const ok4 = persistSafely("pcl_columns_z", JSON.stringify(outZ));
-
-        persistSafely(
-          "pcl_config",
-          JSON.stringify({
-            fileName: state?.fileName || bomFile.name,
-            sheetName: matchedSheetName,
-            trackerType: "flat",
-          })
-        );
-
-        persistSafely(
-          "pcl_mapping_letters",
-          JSON.stringify({
-            frame: frameCol,
-            pole: poleCol,
-            x: xCol,
-            y: yCol,
-            z: zCol,
-          })
-        );
-
-        if (!(ok1 && ok2 && ok3 && ok4 && okF)) {
-          setStatus("Loaded. Note: browser storage is full, so refresh may require re-upload.");
-        }
-      } catch (e) {
-        setStatus("");
-        setError(e?.message || "Failed to read BOM file.");
-      }
-    })();
-
+    // 4. ERROR: No file and no cache
+    setError("No BOM data found. Go back to Uploads and try again.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
