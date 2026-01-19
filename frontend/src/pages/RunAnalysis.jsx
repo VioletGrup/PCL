@@ -24,6 +24,7 @@ export default function RunAnalysis() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarSearch, setSidebarSearch] = useState("");
   const [okPage, setOkPage] = useState(0);
+  const [legendOpen, setLegendOpen] = useState(true);
   const PAGE_SIZE = 100;
 
   // Helpers
@@ -566,6 +567,42 @@ export default function RunAnalysis() {
               onClick={onPlotClick}
             />
           </div>
+
+          {gradingResults && (
+            <div className={`ra-plot-legend ${legendOpen ? 'open' : 'closed'}`}>
+              <button
+                className="ra-legend-toggle"
+                onClick={() => setLegendOpen(!legendOpen)}
+              >
+                {legendOpen ? "Hide Legend" : "Show Legend"}
+              </button>
+              {legendOpen && (
+                <div className="ra-legend-content">
+                  <div className="ra-legend-item">
+                    <span className="ra-legend-dot red"></span>
+                    <div className="ra-legend-text">
+                      <div className="ra-legend-label">Violation</div>
+                      <div className="ra-legend-desc">Still fails constraints after grading</div>
+                    </div>
+                  </div>
+                  <div className="ra-legend-item">
+                    <span className="ra-legend-dot orange"></span>
+                    <div className="ra-legend-text">
+                      <div className="ra-legend-label">Graded</div>
+                      <div className="ra-legend-desc">Fixed via ground adjustment (Cut/Fill)</div>
+                    </div>
+                  </div>
+                  <div className="ra-legend-item">
+                    <span className="ra-legend-dot green"></span>
+                    <div className="ra-legend-text">
+                      <div className="ra-legend-label">OK</div>
+                      <div className="ra-legend-desc">Valid without ground adjustment</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
