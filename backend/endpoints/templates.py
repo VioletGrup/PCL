@@ -12,12 +12,14 @@ router = APIRouter()
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "templates")
 
+
 class FillRequest(BaseModel):
     tracker_type: str = Field(..., description="flat or xtr")
     x: List[Any]
     y: List[Any]
     z: List[Any]
     pole: List[Any]
+
 
 def find_inputs_sheet(wb):
     # Prefer exact name "Inputs", otherwise case-insensitive match
@@ -28,6 +30,7 @@ def find_inputs_sheet(wb):
         if name.strip().lower() == "inputs":
             return wb[name]
     return None
+
 
 @router.post("/fill-grading-tool")
 def fill_grading_tool(req: FillRequest):
@@ -88,9 +91,11 @@ def fill_grading_tool(req: FillRequest):
     if missing:
         raise HTTPException(
             status_code=500,
-            detail = (
+            detail=(
                 f"Inputs sheet missing expected header(s): {', '.join(missing)}. "
-                "Please check template headers."))
+                "Please check template headers."
+            ),
+        )
 
     start_row = header_row + 1
 
@@ -111,5 +116,5 @@ def fill_grading_tool(req: FillRequest):
     return StreamingResponse(
         out,
         media_type="application/vnd.ms-excel.sheet.macroEnabled.12",
-        headers={"Content-Disposition": f'attachment; filename="{out_name}"'}
+        headers={"Content-Disposition": f'attachment; filename="{out_name}"'},
     )

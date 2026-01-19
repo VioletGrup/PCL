@@ -21,9 +21,11 @@ app.add_middleware(
 app.include_router(grading.router, prefix="/api", tags=["grading"])
 app.include_router(templates.router, prefix="/api", tags=["templates"])
 
+
 @app.get("/")
 def root():
     return {"message": "PCL Earthworks API"}
+
 
 @app.get("/health")
 def health():
