@@ -79,12 +79,12 @@ class BasePile:
         return (
             self.current_elevation
             + project.constraints.max_reveal_height
-            - project.constraints.pile_install_tolerance
+            - project.constraints.pile_install_tolerance / 2
         )
 
     def pile_at_target_height(self, project: Project) -> float:
         """Return the target height of the pile based on the grading window percentage."""
         grading_window = self.true_max_height(project) - self.true_min_height(project)
         return self.true_min_height(project) + (
-            grading_window * project.constraints.target_height_percantage
+            grading_window * project.constraints.target_height_percantage / 2
         )
