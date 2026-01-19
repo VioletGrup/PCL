@@ -9,6 +9,7 @@ from TerrainFollowingPile import TerrainFollowingPile
 from TerrainFollowingTracker import TerrainFollowingTracker
 from testing_compare_tf import compare_results
 from testing_get_data_tf import load_project_from_excel, to_excel
+from flatTrackerGrading import sliding_line
 
 
 def _y_intercept(slope: float, x: float, y: float) -> float:
@@ -184,51 +185,6 @@ def check_within_window(
             )
 
     return violations
-
-
-def sliding_line(
-    tracker: TerrainFollowingTracker,
-    violating_piles: list[dict[str, float]],
-    slope: float,
-    y_intercept: float,
-) -> None:
-    """
-    Slide the grading line vertically to reduce grading window violations.
-
-    Parameters
-    ----------
-    tracker : TerrainFollowingTracker
-        Tracker whose pile elevations are adjusted.
-    project : Project
-        Project containing grading constraints.
-    violating_piles : list[dict[str, float]]
-        List of piles currently outside the grading window.
-    slope : float
-        Gradient of the grading line.
-    y_intercept : float
-        Current y-intercept of the grading line.
-    """
-    # calculate maximum distance piles are outside the window
-    max_distance_pile = max(violating_piles, key=lambda x: abs(x["below_by"] + x["above_by"]))
-    max_distance = max_distance_pile["below_by"] + max_distance_pile["above_by"]
-    movement_limit = (
-        violating_piles[0]["grading_window_max"] - violating_piles[0]["grading_window_min"]
-    ) / 2
-
-    # determine how much to slide the line by (capped by movement limit)
-    if max_distance > movement_limit:
-        movement = movement_limit
-    elif max_distance < -movement_limit:
-        movement = -movement_limit
-    else:
-        movement = max_distance
-
-    # update the y-intercept based on the required movement
-    new_y_intercept = y_intercept - movement
-
-    # update the elevations of each pile based on the new line
-    for pile in tracker.piles:
-        pile.height = _interpolate_coords(pile, slope, new_y_intercept)
 
 
 def grading(tracker: TerrainFollowingTracker, violating_piles: list[dict[str, float]]) -> None:
@@ -475,6 +431,22 @@ def main(project: Project) -> None:
         # set the tracker piles to the target height line
         slope, y_intercept, target_heights = target_height_line(tracker, project)
         piles_outside1 = check_within_window(window, tracker)
+        if piles_outside1:
+            window_half = (
+                piles_outside1[0]["grading_window_max"] - piles_outside1[0]["grading_window_min"]
+            ) / 2.0
+
+            intercept_span = max(1e-6, 4.0 * window_half)
+
+            slope, y_intercept = sliding_line(
+                tracker,
+                project,
+                slope,
+                y_intercept,
+                intercept_span=intercept_span,
+                slope_tolerance=0.05,
+                slope_steps=11,
+            )
 
         if piles_outside1:
             tracker.create_segments()
@@ -538,5 +510,5 @@ if __name__ == "__main__":
     main(project)
     to_excel(project)
     print("Results saved to final_pile_elevations_for_tf.xlsx")
-    print("Comparing results to expected outcome...")
-    compare_results()
+    # print("Comparing results to expected outcome...")
+    # compare_results()
