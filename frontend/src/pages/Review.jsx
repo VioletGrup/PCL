@@ -129,7 +129,7 @@ export default function Review() {
       const yOk = yH === "y" || yH.includes("north");
       const zOk =
         zH === "z" ||
-        zH.includes("z") ||
+        (zH.includes("z") && zH.includes("enter")) ||
         zH.includes("terrain") ||
         zH.includes("ground") ||
         zH.includes("elev");
