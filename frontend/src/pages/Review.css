@@ -1,0 +1,207 @@
+.review-shell {
+  position: fixed;
+  inset: 0;
+  background: #f6f7fb;
+  font-family: Arial, sans-serif;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.review-topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.review-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.review-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.review-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-filename {
+  color: #475569;
+  font-weight: 800;
+}
+
+.review-count {
+  color: #475569;
+  font-weight: 700;
+}
+
+.review-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.review-link {
+  text-decoration: none;
+  color: #334155;
+  font-weight: 900;
+}
+
+.review-btn {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid #d7dbea;
+  background: white;
+  color: #0f172a;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.review-btn:hover {
+  background: #f3f5ff;
+}
+
+.review-primary {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: none;
+  background: #0f172a;
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.review-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.review-error {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #f5c2c7;
+  background: #f8d7da;
+  font-weight: 900;
+}
+
+.review-status {
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid #cfe2ff;
+  background: #e7f1ff;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.review-window {
+  flex: 1;
+  background: white;
+  border: 1px solid #e8eaf2;
+  border-radius: 16px;
+  overflow: auto;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+}
+
+.review-empty {
+  padding: 18px;
+  color: #64748b;
+  font-weight: 800;
+}
+
+.review-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.review-table th {
+  position: sticky;
+  top: 0;
+  background: #0f172a;
+  color: white;
+  text-align: left;
+  padding: 12px;
+  font-size: 13px;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.review-table td {
+  border-bottom: 1px solid #f1f3fb;
+  border-right: 1px solid #f1f3fb;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
+.review-footer {
+  color: #475569;
+  font-weight: 700;
+}
+
+/* Mapping bar */
+.review-mappingbar {
+  background: white;
+  border: 1px solid #e8eaf2;
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+}
+
+.inst-title {
+  color: #475569;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.review-maprow {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.review-mapfield {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.review-mapfield label {
+  color: #475569;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.review-mapinput {
+  width: 92px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #d7dbea;
+  background: #f8fafc;
+  font-weight: 900;
+  color: #0f172a;
+  outline: none;
+  text-transform: uppercase;
+}
+
+.review-mapinput:focus {
+  border-color: #94a3b8;
+  background: #ffffff;
+}
+
+.inst-list {
+  color: #475569;
+  font-weight: 700;
+  margin-left: 6px;
+}

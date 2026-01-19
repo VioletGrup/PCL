@@ -71,7 +71,7 @@ class BasePile:
             self.current_elevation
             + project.constraints.min_reveal_height
             + self.flooding_allowance
-            + project.constraints.pile_install_tolerance
+            + project.constraints.pile_install_tolerance / 2
         )
 
     def true_max_height(self, project: Project) -> float:
