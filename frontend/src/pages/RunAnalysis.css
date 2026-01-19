@@ -317,3 +317,95 @@
 .ra-btn-success:hover {
   background: #00a844;
 }
+
+/* Legend Styles */
+.ra-plot-legend {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 110;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: all 0.3s ease;
+  min-width: 240px;
+}
+
+.ra-plot-legend.closed {
+  min-width: 120px;
+}
+
+.ra-legend-toggle {
+  background: #0f172a;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 900;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  width: 100%;
+  text-align: center;
+}
+
+.ra-legend-toggle:hover {
+  background: #1e293b;
+}
+
+.ra-legend-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ra-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ra-legend-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ra-legend-dot.red {
+  background: #FF4D4D;
+}
+
+.ra-legend-dot.orange {
+  background: #FF9800;
+}
+
+.ra-legend-dot.green {
+  background: #00C853;
+}
+
+.ra-legend-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ra-legend-label {
+  font-size: 14px;
+  font-weight: 900;
+  color: #1e293b;
+}
+
+.ra-legend-desc {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  line-height: 1.3;
+}
