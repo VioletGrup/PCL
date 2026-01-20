@@ -155,7 +155,7 @@ class Project:
         """Returns all the trackers with the same easting"""
         same_easting = []
         for tracker in self.trackers:
-            if tracker.id in ignore_ids:
+            if tracker.tracker_id in ignore_ids:
                 continue  # early exit
             if tracker.get_first().easting == easting:
                 same_easting.append(tracker)

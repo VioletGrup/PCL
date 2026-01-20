@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from NorthSouth import NorthSouth
+from shading.NorthSouth import NorthSouth
 
 from TrackerABC import TrackerABC
 
@@ -12,7 +12,9 @@ def main(ns: NorthSouth) -> list[tuple[int, int, float]]:
         if tracker.tracker_id in analysed_tracker_ids:
             continue  # ensure we don't accidently loop over a tracker twice
         # get a list of all the trackers that have the same easting
-        trackers_in_col = ns.project.get_trackers_on_easting(tracker.easting, analysed_tracker_ids)
+        trackers_in_col = ns.project.get_trackers_on_easting(
+            tracker.piles[0].easting, analysed_tracker_ids
+        )
         # sort this list of trackers from northmost to southmost
         trackers_in_col = sorted(
             trackers_in_col,
@@ -32,12 +34,16 @@ def main(ns: NorthSouth) -> list[tuple[int, int, float]]:
             south_id = south.tracker_id
             # determine the height difference between the end piles in the trackers
             height_diff = abs(
-                north.get_southmost_pile.total_height - south.get_northmost_pile.total_height
+                north.get_southmost_pile().total_height - south.get_northmost_pile().total_height
             )
 
             # compare with the maximum height difference as determined by the north-south shading
             # algorithim
             if height_diff > ns.max_height_diff:
-                violating_trackers.append((north_id, south_id.height_diff))
+                violating_trackers.append((north_id, south_id, height_diff))
 
+        # ######### TESTING #############
+        # for i in violating_trackers:
+        #     print(i[0], i[1], i[2])
+        # ##############################
     return violating_trackers

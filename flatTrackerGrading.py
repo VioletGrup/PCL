@@ -7,6 +7,8 @@ from BasePile import BasePile
 from BaseTracker import BaseTracker
 from Project import Project
 from ProjectConstraints import ProjectConstraints
+from shading.northSouthShadingAnalysis import main as ns_main
+from shading.NorthSouth import NorthSouth
 from testing_compare import compare_results
 from testing_get_data import load_project_from_excel, to_excel
 
@@ -768,5 +770,5 @@ if __name__ == "__main__":
     main(project)
     to_excel(project)
     print("Results saved to final_pile_elevations_slide_twice.xlsx")
-    print("Comparing results to expected outcome...")
-    compare_results()
+    # print("Comparing results to expected outcome...")
+    # compare_results()
