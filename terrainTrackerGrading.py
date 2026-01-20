@@ -494,10 +494,10 @@ def main(project: Project) -> None:
 
         # set the tracker piles to the target height line
         slope, y_intercept, target_heights = target_height_line(tracker, project)
-        piles_outside1 = check_within_window(window, tracker)
-        if piles_outside1:
+        piles_outside0 = check_within_window(window, tracker)
+        if piles_outside0:
             window_half = (
-                piles_outside1[0]["grading_window_max"] - piles_outside1[0]["grading_window_min"]
+                piles_outside0[0]["grading_window_max"] - piles_outside0[0]["grading_window_min"]
             ) / 2.0
 
             intercept_span = max(1e-6, 4.0 * window_half)
@@ -512,6 +512,7 @@ def main(project: Project) -> None:
                 slope_steps=11,
             )
 
+        piles_outside1 = check_within_window(window, tracker)
         if piles_outside1:
             tracker.create_segments()
             updated_piles_outside1, heights_after1 = alteration1(tracker, project, piles_outside1)
