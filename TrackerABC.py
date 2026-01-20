@@ -53,3 +53,17 @@ class TrackerABC(ABC):
         raise ValueError(
             f"Pile with pole_id {pile_in_tracker} not found in tracker {self.tracker_id}"
         )
+
+    def get_northmost_pile(self) -> BasePile:
+        """Return the northmost pile in this tracker"""
+        if not self.piles:
+            raise ValueError(f"Tracker {getattr(self, 'tracker_id', '?')} has no piles")
+
+        return max(self.piles, key=lambda p: p.northing)
+
+    def get_southmost_pile(self) -> BasePile:
+        """Return the southmost pile in this tracker"""
+        if not self.piles:
+            raise ValueError(f"Tracker {getattr(self, 'tracker_id', '?')} has no piles")
+
+        return min(self.piles, key=lambda p: p.northing)
