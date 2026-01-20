@@ -14,6 +14,7 @@ class ProjectConstraints:
     pile_install_tolerance: float
     max_incline: float  # rise/run
     max_angle_rotation: float  # degrees
+    edge_overhang: float  # meters
     target_height_percantage: float = 0.5  # % of grading window
 
     # Terrain-following only (degrees)

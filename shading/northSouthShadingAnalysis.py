@@ -3,16 +3,17 @@
 from shading.NorthSouth import NorthSouth
 
 from TrackerABC import TrackerABC
+from Project import Project
 
 
-def main(ns: NorthSouth) -> list[tuple[int, int, float]]:
+def main(ns: NorthSouth, project: Project) -> list[tuple[int, int, float]]:
     analysed_tracker_ids = []  # keep a list of tracker ids that have already been analysed
     violating_trackers = []
-    for tracker in ns.project.trackers:
+    for tracker in project.trackers:
         if tracker.tracker_id in analysed_tracker_ids:
             continue  # ensure we don't accidently loop over a tracker twice
         # get a list of all the trackers that have the same easting
-        trackers_in_col = ns.project.get_trackers_on_easting(
+        trackers_in_col = project.get_trackers_on_easting(
             tracker.piles[0].easting, analysed_tracker_ids
         )
         # sort this list of trackers from northmost to southmost
@@ -36,10 +37,14 @@ def main(ns: NorthSouth) -> list[tuple[int, int, float]]:
             height_diff = abs(
                 north.get_southmost_pile().total_height - south.get_northmost_pile().total_height
             )
+            # find the gap between the edges of the solar panels - is not simply the distance
+            # between the piles, must account for the panels hanging over the edge of the last
+            # piles
+            gap = abs(north.norhting - south.northing) - 2 * project.constraints.edge_overhang
 
             # compare with the maximum height difference as determined by the north-south shading
             # algorithim
-            if height_diff > ns.max_height_diff:
+            if height_diff > ns.max_height_diff(gap):
                 violating_trackers.append((north_id, south_id, height_diff))
 
         # ######### TESTING #############
