@@ -1,5 +1,5 @@
 // App.jsx
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 
@@ -15,20 +15,31 @@ import FramePage from "./pages/FramePage";
 
 export default function App() {
   /**
-   * Purpose: Root router + premium landing page with PCL-themed dark/light toggle.
+   * Purpose: Root router + premium landing page with working PCL-themed dark/light toggle across ALL pages.
    * Name: App.jsx
-   * Date created: 2026-01-19
-   * Method: Uses React Router for navigation and CSS variables via data-theme for theming.
+   * Date created: 2026-01-20
+   * Method: Theme stored in localStorage; initial theme from storage or system preference; sets data-theme on <html> and <body>.
    * Data dictionary:
-   *  - theme (string): UI theme state ("dark" | "light").
-   *  - setTheme (function): React state setter for theme.
-   *  - toggleTheme (function): flips theme on button click.
+   *  - theme (string): "dark" | "light"
+   *  - setTheme (function): state setter
    */
 
-  const [theme, setTheme] = useState("dark");
+  const initialTheme = useMemo(() => {
+    
+  }, []);
+
+  const [theme, setTheme] = useState(initialTheme);
 
   useEffect(() => {
+    // Apply theme globally so every page picks it up
     document.documentElement.setAttribute("data-theme", theme);
+    document.body.setAttribute("data-theme", theme);
+
+    // Persist
+    localStorage.setItem("pcl_theme", theme);
+
+    // Optional: helps some browser UI
+    document.documentElement.style.colorScheme = theme;
   }, [theme]);
 
   const toggleTheme = (e) => {
@@ -39,6 +50,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* LANDING */}
         <Route
           path="/"
           element={
@@ -99,7 +111,7 @@ export default function App() {
                 </div>
               </header>
 
-              {/* Main Content */}
+              {/* Main */}
               <main className="main-content">
                 <section className="hero-section">
                   <div className="badge">
@@ -136,12 +148,7 @@ export default function App() {
                       className="secondary-button"
                       onClick={() => alert("User Manual coming soon")}
                     >
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                      >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                         <polygon points="5 3 19 12 5 21 5 3" />
                       </svg>
                       User Manual
@@ -149,7 +156,6 @@ export default function App() {
                   </div>
                 </section>
 
-                {/* Feature cards */}
                 <section className="features">
                   <div className="feature-item">
                     <div className="feature-icon">
@@ -219,7 +225,6 @@ export default function App() {
                 </section>
               </main>
 
-              {/* Footer */}
               <footer className="footer">
                 <div className="footer-content">
                   <p>{new Date().getFullYear()} PCL Construction x UNSW</p>
@@ -234,6 +239,7 @@ export default function App() {
           }
         />
 
+        {/* PAGES */}
         <Route path="/uploads" element={<Uploads />} />
         <Route path="/review" element={<Review />} />
         <Route path="/proceed-grading" element={<GradingTool />} />
