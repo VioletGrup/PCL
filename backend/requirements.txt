@@ -3,3 +3,18 @@ uvicorn[standard]
 pydantic
 openpyxl
 python-multipart
+
+
+# Test dependencies for PCL project
+
+# Core testing framework
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.3.0  # Parallel test execution
+
+# Code coverage
+coverage>=7.3.0
+
+# Production dependencies (if not already installed)
+pandas>=2.0.0
+openpyxl>=3.1.0

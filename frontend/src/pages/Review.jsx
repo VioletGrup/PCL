@@ -4,6 +4,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import "./Review.css";
 
+import pclLogo from "../assets/logos/pcllogo.png";
+import backgroundImage from "../assets/logos/Australia-Office-2025.png";
+
 export default function Review() {
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -123,7 +126,11 @@ export default function Review() {
       const zH = norm(r[idx.z]);
 
       // Loosen matching: allow EXACT or INCLUDES (aliases)
-      const tableOk = tableH === "table" || tableH.includes("table") || tableH.includes("tracker") || tableH.includes("frame");
+      const tableOk =
+        tableH === "table" ||
+        tableH.includes("table") ||
+        tableH.includes("tracker") ||
+        tableH.includes("frame");
       const poleOk = poleH === "pole" || poleH.includes("pole") || poleH.includes("pile");
       const xOk = xH === "x" || xH.includes("east");
       const yOk = yH === "y" || yH.includes("north");
@@ -141,8 +148,6 @@ export default function Review() {
     }
 
     if (headerRowIndex === -1) {
-      // If we couldn't find a header row, don't crash.
-      // Start from Row 0 and let the user manually fix the mapping.
       headerRowIndex = 0;
       isFallback = true;
     }
@@ -201,7 +206,7 @@ export default function Review() {
       emptyStreak = 0;
 
       outFrame.push(toNumberIfPossible(fVal)); // usually numeric
-      outPole.push(toNumberIfPossible(pVal));  // must be numeric
+      outPole.push(toNumberIfPossible(pVal)); // must be numeric
       outX.push(xVal);
       outY.push(yVal);
       outZ.push(zVal);
@@ -240,10 +245,10 @@ export default function Review() {
 
           const idx = {
             frame: letterToColIndex(frameCol) ?? 0, // A
-            pole: letterToColIndex(poleCol) ?? 2,  // C
-            x: letterToColIndex(xCol) ?? 3,        // D
-            y: letterToColIndex(yCol) ?? 4,        // E
-            z: letterToColIndex(zCol) ?? 8,        // I
+            pole: letterToColIndex(poleCol) ?? 2, // C
+            x: letterToColIndex(xCol) ?? 3, // D
+            y: letterToColIndex(yCol) ?? 4, // E
+            z: letterToColIndex(zCol) ?? 8, // I
           };
 
           const { matchedSheetName, outFrame, outPole, outX, outY, outZ, isFallback } =
@@ -259,7 +264,9 @@ export default function Review() {
           setZ(outZ);
 
           if (isFallback) {
-            setStatus("Note: Headers not found automatically. Please verify column assignments below.");
+            setStatus(
+              "Note: Headers not found automatically. Please verify column assignments below."
+            );
           } else {
             setStatus("");
           }
@@ -324,15 +331,6 @@ export default function Review() {
   const PREVIEW_N = 2000;
   const previewCount = Math.min(rowCount || 0, PREVIEW_N);
 
-  function proceedToGradingTool() {
-    setError("");
-    if (!rowCount) {
-      setError("No rows found. Go back to Uploads and upload your BOM.");
-      return;
-    }
-    navigate("/proceed-grading");
-  }
-
   function goToParameters() {
     setError("");
     if (!rowCount) {
@@ -373,11 +371,7 @@ export default function Review() {
       setStatus("Applying mapping…");
 
       const { matchedSheetName, outFrame, outPole, outX, outY, outZ } =
-        await extractColumnsNoHeader(
-          bomFile,
-          { frame: f, pole: p, x: xc, y: yc, z: zc },
-          startIndex
-        );
+        await extractColumnsNoHeader(bomFile, { frame: f, pole: p, x: xc, y: yc, z: zc }, startIndex);
 
       setSheetName(matchedSheetName);
 
@@ -390,13 +384,7 @@ export default function Review() {
       // save mapping letters only (safe)
       persistSafely(
         "pcl_mapping_letters",
-        JSON.stringify({
-          frame: frameCol,
-          pole: poleCol,
-          x: xCol,
-          y: yCol,
-          z: zCol,
-        })
+        JSON.stringify({ frame: frameCol, pole: poleCol, x: xCol, y: yCol, z: zCol })
       );
 
       // best-effort cache columns
@@ -429,156 +417,227 @@ export default function Review() {
     }
   }
 
-  const templateName =
-    trackerType === "xtr" ? "XTR.xlsm" : "Flat Tracker Imperial.xlsm";
+  const templateName = trackerType === "xtr" ? "XTR.xlsm" : "Flat Tracker Imperial.xlsm";
 
   return (
-    <div className="review-shell">
-      <div className="review-topbar">
-        <div className="review-left">
-          <h1 className="review-title">Copied Columns</h1>
-
-          <div className="review-meta">
-            <div className="review-filename">{fileName || "—"}</div>
-
-            <div className="review-count">
-              Sheet: <strong>{sheetName || "—"}</strong> · Rows copied:{" "}
-              <strong>{rowCount || 0}</strong>
-              {rowCount > PREVIEW_N ? ` (showing first ${PREVIEW_N})` : ""}
-            </div>
-
-            <div className="review-count">
-              Tracker: <strong>{trackerType.toUpperCase()}</strong> · Template:{" "}
-              <strong>{templateName}</strong>
-            </div>
-
-            <div className="review-count">
-              Columns:{" "}
-              <strong>
-                Frame={frameCol}, Pole={poleCol}, X={xCol}, Y={yCol}, Z={zCol}
-              </strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="review-actions">
-          <Link to="/uploads" className="review-link">
-            ← Back
-          </Link>
-
-          <button className="review-btn" onClick={() => navigate("/uploads")}>
-            Upload New
-          </button>
-
-          <button
-            className="review-primary"
-            onClick={goToParameters}
-            disabled={!rowCount}
-            title="Go to the next step to enter parameters"
-          >
-            Next: Parameters →
-          </button>
-        </div>
+    <div className="rv-shell">
+      {/* Background */}
+      <div className="rv-bg" aria-hidden="true">
+        <img src={backgroundImage} alt="" className="rv-bgImg" />
+        <div className="rv-bgOverlay" />
+        <div className="rv-gridOverlay" />
       </div>
 
-      <div className="review-mappingbar">
-        <div className="inst-title">Column assignments (change if needed)</div>
-
-        <div className="review-maprow">
-          <div className="review-mapfield">
-            <label>Frame</label>
-            <input
-              className="review-mapinput"
-              value={frameCol}
-              onChange={(e) => setFrameCol(sanitizeLetters(e.target.value))}
-              placeholder="A"
-            />
+      {/* Header */}
+      <header className="rv-header">
+        <div className="rv-headerInner">
+          <div className="rv-brand">
+            <img src={pclLogo} alt="PCL Logo" className="rv-logo" />
+            <div className="rv-brandText">
+              <div className="rv-brandTitle">Earthworks Analysis Tool</div>
+              <div className="rv-brandSub">Review → Parameters → Run</div>
+            </div>
           </div>
 
-          <div className="review-mapfield">
-            <label>Pole</label>
-            <input
-              className="review-mapinput"
-              value={poleCol}
-              onChange={(e) => setPoleCol(sanitizeLetters(e.target.value))}
-              placeholder="C"
-            />
-          </div>
+          <div className="rv-headerActions">
+            <Link to="/uploads" className="rv-navLink">
+              ← Back
+            </Link>
 
-          <div className="review-mapfield">
-            <label>X</label>
-            <input
-              className="review-mapinput"
-              value={xCol}
-              onChange={(e) => setXCol(sanitizeLetters(e.target.value))}
-              placeholder="D"
-            />
-          </div>
+            <button className="rv-btn rv-btnGhost" onClick={() => navigate("/uploads")}>
+              Upload New
+            </button>
 
-          <div className="review-mapfield">
-            <label>Y</label>
-            <input
-              className="review-mapinput"
-              value={yCol}
-              onChange={(e) => setYCol(sanitizeLetters(e.target.value))}
-              placeholder="E"
-            />
-          </div>
-
-          <div className="review-mapfield">
-            <label>Z</label>
-            <input
-              className="review-mapinput"
-              value={zCol}
-              onChange={(e) => setZCol(sanitizeLetters(e.target.value))}
-              placeholder="I"
-            />
-          </div>
-
-          <button className="review-btn" onClick={applyMapping} disabled={isApplying}>
-            {isApplying ? "Applying…" : "Apply"}
-          </button>
-
-          <div className="inst-list">
-            Default: Frame=A, Pole=C, X=D, Y=E, Z=I (Z terrain enter). Manual Apply ignores headers and shows chosen columns.
+            <button
+              className="rv-btn rv-btnPrimary"
+              onClick={goToParameters}
+              disabled={!rowCount}
+              title="Go to the next step to enter parameters"
+            >
+              Next: Parameters →
+            </button>
           </div>
         </div>
-      </div>
+      </header>
 
-      {status && <div className="review-status">{status}</div>}
-      {error && <div className="review-error">{error}</div>}
+      {/* Scroll area */}
+      <div className="rv-mainScroll">
+        <main className="rv-main">
+          {/* Hero */}
+          <div className="rv-hero">
+            <div className="rv-badge">
+              <span className="rv-badgeDot" />
+              Review Extracted Columns
+            </div>
 
-      <div className="review-window">
-        {!rowCount ? (
-          <div className="review-empty">No data to display.</div>
-        ) : (
-          <table className="review-table">
-            <thead>
-              <tr>
-                <th>Frame ({frameCol})</th>
-                <th>Pole ({poleCol})</th>
-                <th>X ({xCol})</th>
-                <th>Y ({yCol})</th>
-                <th>Z ({zCol})</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: previewCount }).map((_, i) => (
-                <tr key={i}>
-                  <td>{String(frame[i] ?? "")}</td>
-                  <td>{String(pole[i] ?? "")}</td>
-                  <td>{String(x[i] ?? "")}</td>
-                  <td>{String(y[i] ?? "")}</td>
-                  <td>{String(z[i] ?? "")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+            <h1 className="rv-h1">Copied Columns</h1>
 
-      <div className="review-footer">
-        Next step: proceed to download the correct grading tool template and the auto-mapped Inputs CSV.
+            <div className="rv-metaCard">
+              <div className="rv-metaRow">
+                <div className="rv-metaLabel">File</div>
+                <div className="rv-metaValue">{fileName || "—"}</div>
+              </div>
+
+              <div className="rv-metaGrid">
+                <div className="rv-metaItem">
+                  <div className="rv-miniLabel">Sheet</div>
+                  <div className="rv-miniValue">{sheetName || "—"}</div>
+                </div>
+
+                <div className="rv-metaItem">
+                  <div className="rv-miniLabel">Rows copied</div>
+                  <div className="rv-miniValue">
+                    {rowCount || 0}
+                    {rowCount > PREVIEW_N ? ` (showing first ${PREVIEW_N})` : ""}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rv-columnsLine">
+                Tracker: <strong>{trackerType.toUpperCase()}</strong> · Template:{" "}
+                <strong>{templateName}</strong>
+                <br />
+                Columns:{" "}
+                <strong>
+                  Frame={frameCol}, Pole={poleCol}, X={xCol}, Y={yCol}, Z={zCol}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Mapping card */}
+          <section className="rv-card rv-cardTight">
+            <div className="rv-cardHead rv-cardHeadTight">
+              <div>
+                <h2 className="rv-cardTitle">Column assignments (change if needed)</h2>
+                <p className="rv-cardSub">
+                  Default: Frame=A, Pole=C, X=D, Y=E, Z=I (Z terrain enter). Manual Apply
+                  ignores headers and reads the chosen columns.
+                </p>
+              </div>
+
+              <div className="rv-stepPill">
+                <span className="rv-stepDot" />
+                Step 2 of 3
+              </div>
+            </div>
+
+            <div className="rv-mapRow">
+              <div className="rv-field">
+                <label className="rv-label">Frame</label>
+                <input
+                  className="rv-input"
+                  value={frameCol}
+                  onChange={(e) => setFrameCol(sanitizeLetters(e.target.value))}
+                  placeholder="A"
+                />
+              </div>
+
+              <div className="rv-field">
+                <label className="rv-label">Pole</label>
+                <input
+                  className="rv-input"
+                  value={poleCol}
+                  onChange={(e) => setPoleCol(sanitizeLetters(e.target.value))}
+                  placeholder="C"
+                />
+              </div>
+
+              <div className="rv-field">
+                <label className="rv-label">X</label>
+                <input
+                  className="rv-input"
+                  value={xCol}
+                  onChange={(e) => setXCol(sanitizeLetters(e.target.value))}
+                  placeholder="D"
+                />
+              </div>
+
+              <div className="rv-field">
+                <label className="rv-label">Y</label>
+                <input
+                  className="rv-input"
+                  value={yCol}
+                  onChange={(e) => setYCol(sanitizeLetters(e.target.value))}
+                  placeholder="E"
+                />
+              </div>
+
+              <div className="rv-field">
+                <label className="rv-label">Z</label>
+                <input
+                  className="rv-input"
+                  value={zCol}
+                  onChange={(e) => setZCol(sanitizeLetters(e.target.value))}
+                  placeholder="I"
+                />
+              </div>
+
+              <button className="rv-btn" onClick={applyMapping} disabled={isApplying}>
+                {isApplying ? "Applying…" : "Apply"}
+              </button>
+            </div>
+
+            <div className="rv-hint">
+              Tip: If your headers weren’t detected automatically, just set the letters here and
+              press <strong>Apply</strong>.
+            </div>
+          </section>
+
+          {/* Alerts */}
+          {status && <div className="rv-alert rv-alertOk">{status}</div>}
+          {error && <div className="rv-alert rv-alertError">{error}</div>}
+
+          {/* Table */}
+          <section className="rv-card">
+            <div className="rv-cardHead">
+              <div>
+                <h2 className="rv-cardTitle">Preview</h2>
+                <p className="rv-cardSub">
+                  Showing {previewCount} of {rowCount || 0} rows.
+                </p>
+              </div>
+            </div>
+
+            <div className="rv-tableWrap">
+              {!rowCount ? (
+                <div className="rv-empty">No data to display.</div>
+              ) : (
+                <table className="rv-table">
+                  <thead>
+                    <tr>
+                      <th>Frame ({frameCol})</th>
+                      <th>Pole ({poleCol})</th>
+                      <th>X ({xCol})</th>
+                      <th>Y ({yCol})</th>
+                      <th>Z ({zCol})</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: previewCount }).map((_, i) => (
+                      <tr key={i}>
+                        <td>{String(frame[i] ?? "")}</td>
+                        <td>{String(pole[i] ?? "")}</td>
+                        <td>{String(x[i] ?? "")}</td>
+                        <td>{String(y[i] ?? "")}</td>
+                        <td>{String(z[i] ?? "")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="rv-footerNote">
+              Next step: proceed to download the correct grading tool template and the auto-mapped
+              Inputs CSV.
+            </div>
+          </section>
+        </main>
+
+        <footer className="rv-footer">
+          <span className="rv-footerMuted">PCL Earthworks Tool • Upload → Review → Parameters</span>
+        </footer>
       </div>
     </div>
   );
