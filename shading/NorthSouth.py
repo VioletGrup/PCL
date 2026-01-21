@@ -3,11 +3,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Literal, Optional
-
-from BasePile import BasePile
-from BaseTracker import BaseTracker
-from Project import Project
 
 
 @dataclass

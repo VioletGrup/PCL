@@ -160,3 +160,8 @@ class Project:
             if tracker.get_first().easting == easting:
                 same_easting.append(tracker)
         return same_easting
+
+    def get_tracker_length(self, tracker_id: int) -> float:
+        """Returns the length of a given tracker, including the overhangs off the edge piles"""
+        tracker = self.get_tracker_by_id(tracker_id)
+        return tracker.distance_first_to_last_pile + (self.constraints.edge_overhang * 2)

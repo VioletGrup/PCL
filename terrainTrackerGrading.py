@@ -347,7 +347,7 @@ def slope_correction(
         # calculate slope delta: the difference between the incoming and outgoing segment slopes
         # for all piles
         for pile in tracker.piles:
-            if pile.pile_in_tracker == 1 or pile.pile_in_tracker == len(tracker.pole_count):
+            if pile.pile_in_tracker == 1 or pile.pile_in_tracker == tracker.pole_count:
                 slope_delta = 0.0  # first and last piles haves no slope delta
                 continue  # next calculation not needed for first and last piles
             else:
