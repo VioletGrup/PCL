@@ -38,3 +38,8 @@ class BaseTracker(TrackerABC):
     def add_pile(self, pile: BasePile) -> None:
         """Add a pile to the tracker."""
         self.piles.append(pile)
+
+    @property
+    def distance_first_to_last_pile(self) -> float:
+        """Returns the distance between the first and last pile in the tracker"""
+        return abs(self.get_first().northing - self.get_last().northing)

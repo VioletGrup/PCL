@@ -9,6 +9,7 @@ from ProjectConstraints import ProjectConstraints
 from TerrainFollowingPile import TerrainFollowingPile
 from TerrainFollowingTracker import TerrainFollowingTracker
 from testing_get_data_tf import load_project_from_excel, to_excel
+from testing_segment_slope import ensure_tracker_deflections_ok
 
 
 def _y_intercept(slope: float, x: float, y: float) -> float:
@@ -291,7 +292,7 @@ def slope_correction(
     1) Propagate alteration-1 movement into the adjacent (next) pile so that local deflection
        constraints are not violated immediately by a single-pile move.
 
-    2) Iterate twice over internal piles to compute slope delta:
+    2) Iterate over internal piles to compute slope delta:
 
            slope_delta = incoming_segment.slope() - outgoing_segment.slope()
 
@@ -343,18 +344,19 @@ def slope_correction(
     if not tracker.segments:
         tracker.create_segments()
 
-    for _ in range(2):  # iterate slope correction twice
+    slope_fine = True
+    while not slope_fine:  # iterate slope correction twice
         # calculate slope delta: the difference between the incoming and outgoing segment slopes
         # for all piles
         for pile in tracker.piles:
-            if pile.pile_in_tracker == 1 or pile.pile_in_tracker == len(tracker.pole_count):
+            if pile.pile_in_tracker == 1 or pile.pile_in_tracker == tracker.pole_count:
                 slope_delta = 0.0  # first and last piles haves no slope delta
                 continue  # next calculation not needed for first and last piles
             else:
                 incoming_segment = tracker.get_segment_by_id(pile.get_incoming_segment_id())
                 outgoing_segment = tracker.get_segment_by_id(pile.get_outgoing_segment_id(tracker))
                 slope_delta = incoming_segment.slope() - outgoing_segment.slope()
-            length = abs(incoming_segment.length())
+            length = min(abs(incoming_segment.length()), abs(outgoing_segment.length()))
             if slope_delta > project.max_strict_segment_slope_change:
                 # upwards slope is steeper than allowed, lower the pile
                 correction = length * (slope_delta - project.max_strict_segment_slope_change)
@@ -366,6 +368,11 @@ def slope_correction(
             else:
                 correction = 0.0
             pile.height -= correction
+            # check if the tracker meets the segment and cumulative deflection requirements
+            slope_fine = tracker.ensure_tracker_deflections_ok(
+                project.constraints.max_segment_deflection_deg,
+                project.constraints.max_cumulative_deflection_deg,
+            )
     heights_after_correction = []
     for pile in tracker.piles:
         heights_after_correction.append(pile.height)
@@ -561,11 +568,13 @@ def main(project: Project) -> None:
 
             # alteration2(tracker, target_heights, heights_after1)
             alteration3(project, tracker, heights_after1, heights_after_correction)
+            piles_outside2 = check_within_window(window, tracker)
+            slope_correction(tracker, project, piles_outside2, heights_after_correction)
 
         # complete final grading for any piles still outside of the window
-        piles_outside2 = check_within_window(window, tracker)
-        if piles_outside2:
-            grading(tracker, piles_outside2)
+        piles_outside3 = check_within_window(window, tracker)
+        if piles_outside3:
+            grading(tracker, piles_outside3)
 
         # Set the final ground elevations, reveal heights and total heights of all piles,
         # some will remain the same
