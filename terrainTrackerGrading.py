@@ -323,6 +323,7 @@ def slope_correction(
             continue  # handles the case that the last pile was moved and there is no next pile
         next_pile = tracker.get_pile_in_tracker(next_id)
         moved_by = float(p.get("moved_by", 0.0) or 0.0)
+
         adjustment = abs(tracker.get_pile_in_tracker(this_id).height - target_heights[this_id - 1])
         if moved_by < 0:
             # pile was above the window and moved down
@@ -330,6 +331,16 @@ def slope_correction(
         else:
             # pile was below the window and moved up
             next_pile.height += abs(adjustment)
+
+    # make sure the first and last pile is not being moved out of the grading window
+    first_pile = tracker.get_first
+    last_pile = tracker.get_last
+    for pile in [first_pile, last_pile]:
+        if pile.height > pile.true_max_height:
+            pile.height = pile.true_max_height
+        elif pile.height < pile.true_min_height:
+            pile.height = pile.true_min_height
+
     if not tracker.segments:
         tracker.create_segments()
 
@@ -441,7 +452,6 @@ def alteration3(
     """
     # determine the average distance that piles are outside the grading window
     total_distance = 0.0
-
     for pile in tracker.piles:
         array_index = pile.pile_in_tracker - 1
         if heights_after1[array_index] > pile.true_max_height(project):
@@ -456,7 +466,37 @@ def alteration3(
     half_window = (
         tracker.get_first().true_max_height(project) - tracker.get_first().true_min_height(project)
     ) / 2
-    adjustment = max(-half_window, min(half_window, average_distance))
+    optimal_adjustment = max(-half_window, min(half_window, average_distance))
+
+    # double check to make sure the adjustment wont put the first and last trackers out of the
+    # grading window
+    first = tracker.get_first()
+    last = tracker.get_last()
+
+    first_index = first.pile_in_tracker - 1
+    last_index = last.pile_in_tracker - 1
+
+    first_prior_height = heights_after_correction[first_index]
+    last_prior_height = heights_after_correction[last_index]
+
+    # Allowed adjustment range from endpoints:
+    # adjustment in [h - h_max, h - h_min]
+    a0_min = first_prior_height - first.true_max_height(project)
+    a0_max = first_prior_height - first.true_min_height(project)
+
+    a1_min = last_prior_height - last.true_max_height(project)
+    a1_max = last_prior_height - last.true_min_height(project)
+
+    allowed_min = max(a0_min, a1_min)
+    allowed_max = min(a0_max, a1_max)
+
+    # If the windows are inconsistent (shouldn't happen), fall back to no adjustment
+    if allowed_min > allowed_max:
+        adjustment = 0.0
+    else:
+        # Might need to change the adjustment if the previously calculated puts the first and last
+        # piles out of the window
+        adjustment = max(allowed_min, min(allowed_max, optimal_adjustment))
     # adjust all piles in the tracker by the average distance
     for pile in tracker.piles:
         pile.height = heights_after_correction[pile.pile_in_tracker - 1] - adjustment
