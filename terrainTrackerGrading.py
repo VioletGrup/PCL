@@ -454,7 +454,7 @@ def alteration3(
     average_distance = total_distance / tracker.pole_count
     # if the average distance is larger than half the grading window, limit the adjustment
     half_window = (
-        tracker.get_first().true_max_height(project) + tracker.get_first().true_min_height(project)
+        tracker.get_first().true_max_height(project) - tracker.get_first().true_min_height(project)
     ) / 2
     adjustment = max(-half_window, min(half_window, average_distance))
     # adjust all piles in the tracker by the average distance
@@ -547,6 +547,7 @@ if __name__ == "__main__":
         max_angle_rotation=0.0,
         max_cumulative_deflection_deg=4.0,
         max_segment_deflection_deg=0.75,
+        edge_overhang=0.0,
     )
 
     # Load project from Excel

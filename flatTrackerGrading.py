@@ -750,6 +750,7 @@ if __name__ == "__main__":
         max_incline=0.15,
         target_height_percantage=0.5,
         max_angle_rotation=0.0,
+        edge_overhang=0.0,
     )
 
     # Load project from Excel
