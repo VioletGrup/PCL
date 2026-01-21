@@ -7,9 +7,6 @@ from BasePile import BasePile
 from BaseTracker import BaseTracker
 from Project import Project
 from ProjectConstraints import ProjectConstraints
-from shading.northSouthShadingAnalysis import main as ns_main
-from shading.NorthSouth import NorthSouth
-from testing_compare import compare_results
 from testing_get_data import load_project_from_excel, to_excel
 
 
