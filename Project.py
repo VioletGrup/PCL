@@ -150,3 +150,13 @@ class Project:
     def true_max_height(self) -> float:
         """Return the true maximum height for a given pile, accounting for tolerance."""
         return self.constraints.max_reveal_height - self.constraints.pile_install_tolerance / 2
+
+    def get_trackers_on_easting(self, easting: float, ignore_ids: list[int]) -> list[TrackerABC]:
+        """Returns all the trackers with the same easting"""
+        same_easting = []
+        for tracker in self.trackers:
+            if tracker.tracker_id in ignore_ids:
+                continue  # early exit
+            if tracker.get_first().easting == easting:
+                same_easting.append(tracker)
+        return same_easting

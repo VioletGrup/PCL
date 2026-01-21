@@ -323,6 +323,7 @@ def slope_correction(
             continue  # handles the case that the last pile was moved and there is no next pile
         next_pile = tracker.get_pile_in_tracker(next_id)
         moved_by = float(p.get("moved_by", 0.0) or 0.0)
+
         adjustment = abs(tracker.get_pile_in_tracker(this_id).height - target_heights[this_id - 1])
         if moved_by < 0:
             # pile was above the window and moved down
@@ -330,6 +331,16 @@ def slope_correction(
         else:
             # pile was below the window and moved up
             next_pile.height += abs(adjustment)
+
+    # make sure the first and last pile is not being moved out of the grading window
+    first_pile = tracker.get_first
+    last_pile = tracker.get_last
+    for pile in [first_pile, last_pile]:
+        if pile.height > pile.true_max_height:
+            pile.height = pile.true_max_height
+        elif pile.height < pile.true_min_height:
+            pile.height = pile.true_min_height
+
     if not tracker.segments:
         tracker.create_segments()
 
@@ -362,48 +373,48 @@ def slope_correction(
     return heights_after_correction
 
 
-def alteration2(
-    tracker: TerrainFollowingTracker, target_heights: list[float], heights_after1: list[float]
-) -> None:
-    """
-    Moves piles within tracker based on if the pile before was moved previously
-    For each pile i, compute:
+# def alteration2(
+#     tracker: TerrainFollowingTracker, target_heights: list[float], heights_after1: list[float]
+# ) -> None:
+#     """
+#     Moves piles within tracker based on if the pile before was moved previously
+#     For each pile i, compute:
 
-        diff_i = heights_after1[i] - target_heights[i]
+#         diff_i = heights_after1[i] - target_heights[i]
 
-    If diff_i != 0, then apply the same vertical offset to the NEXT pile (i+1).
-    This matches the "carry forward" adjustment logic used in the spreadsheet approach.
+#     If diff_i != 0, then apply the same vertical offset to the NEXT pile (i+1).
+#     This matches the "carry forward" adjustment logic used in the spreadsheet approach.
 
-    Notes
-    -----
-    This function mutates `tracker.piles` in-place.
+#     Notes
+#     -----
+#     This function mutates `tracker.piles` in-place.
 
-    Parameters
-    ----------
-    tracker : TerrainFollowingTracker
-        Tracker containing the piles to be adjusted.
-    target_heights : list[float]
-        Original target-line heights for each pile.
-    heights_after1 : list[float]
-        Snapshot of pile heights after alteration 1 (used to compute the deviation).
+#     Parameters
+#     ----------
+#     tracker : TerrainFollowingTracker
+#         Tracker containing the piles to be adjusted.
+#     target_heights : list[float]
+#         Original target-line heights for each pile.
+#     heights_after1 : list[float]
+#         Snapshot of pile heights after alteration 1 (used to compute the deviation).
 
-    Returns
-    -------
-    None
-        Changes pile heights in-place.
-    """
-    tracker.sort_by_pole_position()
+#     Returns
+#     -------
+#     None
+#         Changes pile heights in-place.
+#     """
+#     tracker.sort_by_pole_position()
 
-    for pile in tracker.piles:
-        if (
-            pile.pile_in_tracker != tracker.pole_count
-            and pile.pile_in_tracker != tracker.pole_count - 1
-        ):
-            array_index = pile.pile_in_tracker - 1
-            diff = heights_after1[array_index] - target_heights[array_index]
-            if diff != 0:
-                # if tracker was previously moved up or down move the next one the same amount
-                tracker.get_pile_in_tracker(pile.pile_in_tracker + 1).height += diff
+#     for pile in tracker.piles:
+#         if (
+#             pile.pile_in_tracker != tracker.pole_count
+#             and pile.pile_in_tracker != tracker.pole_count - 1
+#         ):
+#             array_index = pile.pile_in_tracker - 1
+#             diff = heights_after1[array_index] - target_heights[array_index]
+#             if diff != 0:
+#                 # if tracker was previously moved up or down move the next one the same amount
+#                 tracker.get_pile_in_tracker(pile.pile_in_tracker + 1).height += diff
 
 
 def alteration3(
@@ -441,7 +452,6 @@ def alteration3(
     """
     # determine the average distance that piles are outside the grading window
     total_distance = 0.0
-
     for pile in tracker.piles:
         array_index = pile.pile_in_tracker - 1
         if heights_after1[array_index] > pile.true_max_height(project):
@@ -454,9 +464,39 @@ def alteration3(
     average_distance = total_distance / tracker.pole_count
     # if the average distance is larger than half the grading window, limit the adjustment
     half_window = (
-        tracker.get_first().true_max_height(project) + tracker.get_first().true_min_height(project)
+        tracker.get_first().true_max_height(project) - tracker.get_first().true_min_height(project)
     ) / 2
-    adjustment = max(-half_window, min(half_window, average_distance))
+    optimal_adjustment = max(-half_window, min(half_window, average_distance))
+
+    # double check to make sure the adjustment wont put the first and last trackers out of the
+    # grading window
+    first = tracker.get_first()
+    last = tracker.get_last()
+
+    first_index = first.pile_in_tracker - 1
+    last_index = last.pile_in_tracker - 1
+
+    first_prior_height = heights_after_correction[first_index]
+    last_prior_height = heights_after_correction[last_index]
+
+    # Allowed adjustment range from endpoints:
+    # adjustment in [h - h_max, h - h_min]
+    a0_min = first_prior_height - first.true_max_height(project)
+    a0_max = first_prior_height - first.true_min_height(project)
+
+    a1_min = last_prior_height - last.true_max_height(project)
+    a1_max = last_prior_height - last.true_min_height(project)
+
+    allowed_min = max(a0_min, a1_min)
+    allowed_max = min(a0_max, a1_max)
+
+    # If the windows are inconsistent (shouldn't happen), fall back to no adjustment
+    if allowed_min > allowed_max:
+        adjustment = 0.0
+    else:
+        # Might need to change the adjustment if the previously calculated puts the first and last
+        # piles out of the window
+        adjustment = max(allowed_min, min(allowed_max, optimal_adjustment))
     # adjust all piles in the tracker by the average distance
     for pile in tracker.piles:
         pile.height = heights_after_correction[pile.pile_in_tracker - 1] - adjustment
@@ -494,10 +534,10 @@ def main(project: Project) -> None:
 
         # set the tracker piles to the target height line
         slope, y_intercept, target_heights = target_height_line(tracker, project)
-        piles_outside1 = check_within_window(window, tracker)
-        if piles_outside1:
+        piles_outside0 = check_within_window(window, tracker)
+        if piles_outside0:
             window_half = (
-                piles_outside1[0]["grading_window_max"] - piles_outside1[0]["grading_window_min"]
+                piles_outside0[0]["grading_window_max"] - piles_outside0[0]["grading_window_min"]
             ) / 2.0
 
             intercept_span = max(1e-6, 4.0 * window_half)
@@ -512,6 +552,7 @@ def main(project: Project) -> None:
                 slope_steps=11,
             )
 
+        piles_outside1 = check_within_window(window, tracker)
         if piles_outside1:
             tracker.create_segments()
             updated_piles_outside1, heights_after1 = alteration1(tracker, project, piles_outside1)
@@ -519,7 +560,7 @@ def main(project: Project) -> None:
                 tracker, project, updated_piles_outside1, target_heights
             )
 
-            alteration2(tracker, target_heights, heights_after1)
+            # alteration2(tracker, target_heights, heights_after1)
             alteration3(project, tracker, heights_after1, heights_after_correction)
 
         # complete final grading for any piles still outside of the window
@@ -546,6 +587,7 @@ if __name__ == "__main__":
         max_angle_rotation=0.0,
         max_cumulative_deflection_deg=4.0,
         max_segment_deflection_deg=0.75,
+        edge_overhang=0.0,
     )
 
     # Load project from Excel
