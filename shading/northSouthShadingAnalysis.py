@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 
-from shading.NorthSouth import NorthSouth
-
-from TrackerABC import TrackerABC
 from Project import Project
+from shading.NorthSouth import NorthSouth
 
 
 def main(ns: NorthSouth, project: Project) -> list[tuple[int, int, float]]:
