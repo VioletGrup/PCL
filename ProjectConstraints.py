@@ -9,6 +9,8 @@ ProjectType = Literal["standard", "terrain_following"]
 
 @dataclass
 class ProjectConstraints:
+    """"""
+
     min_reveal_height: float
     max_reveal_height: float
     pile_install_tolerance: float

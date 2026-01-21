@@ -3,10 +3,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    pass
 from TerrainFollowingPile import TerrainFollowingPile
 
 
@@ -19,6 +16,7 @@ class Segment:
     end_pile: TerrainFollowingPile
 
     def length(self) -> float:
+        """Returns the length of the segment ie. distance between piles"""
         return math.hypot(
             self.start_pile.easting - self.end_pile.easting,
             self.start_pile.northing - self.end_pile.northing,
@@ -38,5 +36,8 @@ class Segment:
         return self.start_pile.height - self.end_pile.height
 
     def degree_of_deflection(self) -> float:
-        """Uses the slope of the segment to determine the angle of deflection"""
-        return math.tan(self.slope())
+        """Angle of the segment relative to horizontal, in degrees."""
+        s = self.slope()
+        if math.isinf(s):
+            return float("inf")
+        return math.degrees(math.atan(s))

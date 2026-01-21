@@ -18,6 +18,8 @@ ProjectType = Literal["standard", "terrain_following"]
 
 @dataclass
 class Project:
+    """Project containing all trackers and constraints for a given solar farm"""
+
     name: str
     project_type: ProjectType
     constraints: ProjectConstraints
@@ -40,14 +42,22 @@ class Project:
         return self._tracker_cls(tracker_id)  # type: ignore[call-arg]
 
     def add_tracker(self, tracker: TrackerABC) -> None:
+        """
+        Add a new tracker to the project
+
+        BaseTracker for standard projects
+        TerrainFollowingTracker for terrain following projects
+        """
         self.trackers.append(tracker)
 
     @property
     def total_piles(self) -> int:
+        """Return the total number of piles in the solar farm"""
         return sum(t.pole_count for t in self.trackers)
 
     @property
     def max_piles_per_tracker(self) -> int:
+        """Return the maximum number of piles in a tracker"""
         return max((t.pole_count for t in self.trackers), default=0)
 
     @property
