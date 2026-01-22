@@ -112,3 +112,41 @@ class Project:
     def true_max_height(self) -> float:
         """Return the true maximum height for a given pile, accounting for tolerance."""
         return self.constraints.max_reveal_height - self.constraints.pile_install_tolerance / 2
+
+    @property
+    def max_strict_segment_slope_change(self) -> float:
+        """
+        Maximum per-segment slope change (rise/run).
+        Used when verifying that individual segments do not exceed allowable deflection.
+
+        Terrain-following: tan((max_segment_deflection_deg * pi)/180))
+        Standard: 0.0
+        """
+        if self.project_type != "terrain_following":
+            return 0.0
+        # degrees -> slope ratio
+
+        assert self.max_cumulative_slope_change is not None
+        x = math.tan((self.constraints.max_segment_deflection_deg * math.pi) / 180)
+        x *= 10000  # round final value to 4 decimal places
+        x = round(x)
+        return x / 10000
+
+    @property
+    def max_conservative_segment_slope_change(self) -> float:
+        """
+        Conservative maximum per-segment slope change (rise/run).
+        Used when updating pile heights, ensures that the sum of all deflections in a
+        tracker will be within the allowable range
+
+        Terrain-following: max_cumulative_slope_change / 6
+        Standard: 0.0
+        """
+        if self.project_type != "terrain_following":
+            return 0.0
+        # degrees -> slope ratio
+
+        assert self.max_cumulative_slope_change is not None
+        x = self.max_cumulative_slope_change / 6
+        x *= 1000  # round down final value to 3 decimal places
+        return math.floor(x) / 1000

@@ -3,7 +3,6 @@
 
 from typing import Dict
 
-from flatTrackerGrading import sliding_line
 from Project import Project
 from ProjectConstraints import ProjectConstraints
 from TerrainFollowingPile import TerrainFollowingPile
@@ -35,18 +34,17 @@ def _y_intercept(slope: float, x: float, y: float) -> float:
 
 def _window_by_pile_in_tracker(window: list[dict[str, float]]) -> Dict[int, tuple[float, float]]:
     """
-    Convert grading window data into a lookup dictionary keyed by pile_in_tracker.
+    Convert grading window data into a lookup dictionary.
 
     Parameters
     ----------
     window : list[dict[str, float]]
-        List of grading window dictionaries. Each dict must contain:
-        'pile_in_tracker', 'grading_window_min', and 'grading_window_max'.
+        List of grading window dictionaries containing pile limits.
 
     Returns
     -------
     Dict[int, tuple[float, float]]
-        Dictionary mapping pile_in_tracker -> (min_height, max_height).
+        Dictionary mapping pile_id to (min_height, max_height).
     """
     out: Dict[int, tuple[float, float]] = {}
     for row in window:
@@ -78,18 +76,20 @@ def _interpolate_coords(pile: TerrainFollowingPile, slope: float, y_intercept: f
 
 def grading_window(project: Project, tracker: TerrainFollowingTracker) -> list[dict[str, float]]:
     """
-    Convert grading window data into a lookup dictionary keyed by pile_in_tracker.
+    Generate the grading window for all piles in a tracker.
 
     Parameters
     ----------
-    window : list[dict[str, float]]
-        List of grading window dictionaries. Each dict must contain:
-        'pile_in_tracker', 'grading_window_min', and 'grading_window_max'.
+    project : Project
+        Project containing grading constraints.
+    tracker : TerrainFollowingTracker
+        Tracker whose piles are evaluated.
 
     Returns
     -------
-    Dict[int, tuple[float, float]]
-        Dictionary mapping pile_in_tracker -> (min_height, max_height).
+    list[dict[str, float]]
+        List of dictionaries describing grading limits and ground elevation
+        for each pile.
     """
     window = []
     for pile in tracker.piles:
@@ -186,6 +186,51 @@ def check_within_window(
     return violations
 
 
+def sliding_line(
+    tracker: TerrainFollowingTracker,
+    violating_piles: list[dict[str, float]],
+    slope: float,
+    y_intercept: float,
+) -> None:
+    """
+    Slide the grading line vertically to reduce grading window violations.
+
+    Parameters
+    ----------
+    tracker : TerrainFollowingTracker
+        Tracker whose pile elevations are adjusted.
+    project : Project
+        Project containing grading constraints.
+    violating_piles : list[dict[str, float]]
+        List of piles currently outside the grading window.
+    slope : float
+        Gradient of the grading line.
+    y_intercept : float
+        Current y-intercept of the grading line.
+    """
+    # calculate maximum distance piles are outside the window
+    max_distance_pile = max(violating_piles, key=lambda x: abs(x["below_by"] + x["above_by"]))
+    max_distance = max_distance_pile["below_by"] + max_distance_pile["above_by"]
+    movement_limit = (
+        violating_piles[0]["grading_window_max"] - violating_piles[0]["grading_window_min"]
+    ) / 2
+
+    # determine how much to slide the line by (capped by movement limit)
+    if max_distance > movement_limit:
+        movement = movement_limit
+    elif max_distance < -movement_limit:
+        movement = -movement_limit
+    else:
+        movement = max_distance
+
+    # update the y-intercept based on the required movement
+    new_y_intercept = y_intercept - movement
+
+    # update the elevations of each pile based on the new line
+    for pile in tracker.piles:
+        pile.height = _interpolate_coords(pile, slope, new_y_intercept)
+
+
 def grading(tracker: TerrainFollowingTracker, violating_piles: list[dict[str, float]]) -> None:
     """
     Determine the new ground elevations for piles that fall outside the allowed grading window
@@ -205,38 +250,22 @@ def grading(tracker: TerrainFollowingTracker, violating_piles: list[dict[str, fl
 
 def alteration1(
     tracker: TerrainFollowingTracker, project: Project, violating_piles: list[dict[str, float]]
-) -> tuple[list[dict[str, float]], list[float]]:
+) -> list[dict[str, float]]:
     """
-    Alteration 1: move violating piles toward their grading windows with segment deflection limits.
-
-    For each violating pile, compute the signed distance to its window:
-
-        dist_to_window = above_by + below_by
-
-    Then move the pile height toward the nearest boundary, but cap the move by
-    the maximum allowed vertical change for the incoming segment:
-
-        max_vertical_change = segment.length() * project.max_conservative_segment_slope_change
-
-    The function records 'moved_by' (signed) in each violating pile dict and returns
-    a snapshot list of pile heights after this alteration.
-
+    Adjust pile heights to fit within or as close to the grading window while respecting
+    segment deflection constraints.
     Parameters
     ----------
     tracker : TerrainFollowingTracker
-        Tracker containing the piles to be adjusted.
+        The tracker containing the piles to be adjusted.
     project : Project
-        Project containing grading and deflection constraints.
+        The project containing grading constraints.
     violating_piles : list[dict[str, float]]
-        List of piles currently outside the grading window (from check_within_window()).
-
+        List of piles currently outside the grading window.
     Returns
     -------
-    tuple[list[dict[str, float]], list[float]]
-        violating_piles : list[dict[str, float]]
-            Same list with an added key 'moved_by' for piles that were moved.
-        pile_heights : list[float]
-            Snapshot of pile heights (in tracker pile order) after alteration 1.
+    list[dict[str, float]]
+        List of piles that were moved in this alteration including how far they have moved
     """
     for p in violating_piles:
         pile = tracker.get_pile_in_tracker(p["pile_in_tracker"])
@@ -248,6 +277,7 @@ def alteration1(
         # find the maximum vertical change allowed for the segment based on defelction constraints
         max_vertical_change = segment.length() * project.max_conservative_segment_slope_change
         dist_to_window = p["above_by"] + p["below_by"]
+        # print(tracker.tracker_id, p["pile_in_tracker"], dist_to_window)
 
         # adjust the height of the pile within the allowed vertical change
         if dist_to_window > 0:
@@ -275,6 +305,7 @@ def alteration1(
         pile_heights = []
         for pile in tracker.piles:
             pile_heights.append(pile.height)
+        # print(pile.pile_id, pile.height, p["moved_by"], dist_to_window, max_vertical_change)
     return violating_piles, pile_heights
 
 
@@ -283,38 +314,24 @@ def slope_correction(
     project: Project,
     violating_piles: list[dict[str, float]],
     target_heights: list[float],
-) -> list[float]:
+) -> None:
     """
-    Apply slope-change corrections to ensure segment-to-segment slope deltas are within limits.
-
-    This performs two steps:
-
-    1) Propagate alteration-1 movement into the adjacent (next) pile so that local deflection
-       constraints are not violated immediately by a single-pile move.
-
-    2) Iterate twice over internal piles to compute slope delta:
-
-           slope_delta = incoming_segment.slope() - outgoing_segment.slope()
-
-       If |slope_delta| exceeds project.max_strict_segment_slope_change, apply a vertical
-       correction proportional to incoming segment length.
+    Check to ensure that all segments are within the maximum segment deflection requirements.
 
     Parameters
     ----------
     tracker : TerrainFollowingTracker
-        Tracker containing the piles to be adjusted.
+        The tracker containing the piles to be adjusted.
     project : Project
-        Project containing strict deflection constraints.
+        The project containing grading constraints.
     violating_piles : list[dict[str, float]]
-        List of piles moved in alteration1. Each dict may contain 'moved_by'.
-    target_heights : list[float]
-        Snapshot of original target-line heights (used to infer the magnitude of movement).
-
-    Returns
-    -------
-    list[float]
-        Snapshot of pile heights (in tracker pile order) after slope correction.
+        List of piles that were outside of the grading window and adjusted in the previous
+        alteration.
+    target_heights: list[float]
+        List of all the pile heights when they were set to the target height
     """
+    # for pile in tracker.piles:
+    # print(pile.pile_id, target_heights[pile.pile_in_tracker - 1], pile.height)
     # for all the piles that were moved in alteration1, move the adjacent pile the same amount
     for p in reversed(violating_piles):
         this_id = p["pile_in_tracker"]
@@ -323,6 +340,7 @@ def slope_correction(
             continue  # handles the case that the last pile was moved and there is no next pile
         next_pile = tracker.get_pile_in_tracker(next_id)
         moved_by = float(p.get("moved_by", 0.0) or 0.0)
+        # print(tracker.get_pile_in_tracker(this_id).height)
         adjustment = abs(tracker.get_pile_in_tracker(this_id).height - target_heights[this_id - 1])
         if moved_by < 0:
             # pile was above the window and moved down
@@ -330,10 +348,12 @@ def slope_correction(
         else:
             # pile was below the window and moved up
             next_pile.height += abs(adjustment)
+    for pile in tracker.piles:
+        print(pile.pile_id, pile.height)
     if not tracker.segments:
         tracker.create_segments()
 
-    for _ in range(2):  # iterate slope correction twice
+    for i in range(2):  # iterate slope correction twice
         # calculate slope delta: the difference between the incoming and outgoing segment slopes
         # for all piles
         for pile in tracker.piles:
@@ -348,11 +368,17 @@ def slope_correction(
             if slope_delta > project.max_strict_segment_slope_change:
                 # upwards slope is steeper than allowed, lower the pile
                 correction = length * (slope_delta - project.max_strict_segment_slope_change)
-
+                # print(
+                #     1, pile.pile_id, pile.height, correction, length,
+                #     slope_delta
+                # )
             elif slope_delta < -project.max_strict_segment_slope_change:
                 # downwards slope is steeper than allowed, raise the pile
                 correction = length * (slope_delta + project.max_strict_segment_slope_change)
-
+                # print(
+                #     2, pile.pile_id, pile.height, correction, length,
+                #     slope_delta
+                # )
             else:
                 correction = 0.0
             pile.height -= correction
@@ -362,48 +388,32 @@ def slope_correction(
     return heights_after_correction
 
 
-def alteration2(
-    tracker: TerrainFollowingTracker, target_heights: list[float], heights_after1: list[float]
-) -> None:
-    """
-    Moves piles within tracker based on if the pile before was moved previously
-    For each pile i, compute:
+# def alteration2(
+#     tracker: TerrainFollowingTracker, target_heights: list[float], heights_after1: list[float]
+# ) -> None:
+#     """
+#     Moves piles within tracker based on if the pile before was moved previously
 
-        diff_i = heights_after1[i] - target_heights[i]
+#     Parameters
+#     ----------
+#     tracker : TerrainFollowingTracker
+#         The tracker containing the piles to be adjusted.
+#     violating_piles : list[dict[str, float]]
+#         List of piles that were outside of the grading window and adjusted in the previous
+#         alteration.
+#     """
+#     tracker.sort_by_pole_position()
 
-    If diff_i != 0, then apply the same vertical offset to the NEXT pile (i+1).
-    This matches the "carry forward" adjustment logic used in the spreadsheet approach.
-
-    Notes
-    -----
-    This function mutates `tracker.piles` in-place.
-
-    Parameters
-    ----------
-    tracker : TerrainFollowingTracker
-        Tracker containing the piles to be adjusted.
-    target_heights : list[float]
-        Original target-line heights for each pile.
-    heights_after1 : list[float]
-        Snapshot of pile heights after alteration 1 (used to compute the deviation).
-
-    Returns
-    -------
-    None
-        Changes pile heights in-place.
-    """
-    tracker.sort_by_pole_position()
-
-    for pile in tracker.piles:
-        if (
-            pile.pile_in_tracker != tracker.pole_count
-            and pile.pile_in_tracker != tracker.pole_count - 1
-        ):
-            array_index = pile.pile_in_tracker - 1
-            diff = heights_after1[array_index] - target_heights[array_index]
-            if diff != 0:
-                # if tracker was previously moved up or down move the next one the same amount
-                tracker.get_pile_in_tracker(pile.pile_in_tracker + 1).height += diff
+#     for pile in tracker.piles:
+#         if (
+#             pile.pile_in_tracker != tracker.pole_count
+#             and pile.pile_in_tracker != tracker.pole_count - 1
+#         ):
+#             array_index = pile.pile_in_tracker - 1
+#             diff = heights_after1[array_index] - target_heights[array_index]
+#             if diff != 0:
+#                 # if tracker was previously moved up or down move the next one the same amount
+#                 tracker.get_pile_in_tracker(pile.pile_in_tracker + 1).height += diff
 
 
 def alteration3(
@@ -413,31 +423,15 @@ def alteration3(
     heights_after_correction: list[float],
 ) -> None:
     """
-    Alteration 3: shift the entire tracker vertically by an average violation amount.
-
-    This computes, for each pile, a signed distance to its grading window based on the
-    heights after alteration 1 (heights_after1). Distances are summed and averaged across
-    ALL piles (not only violating piles), matching the spreadsheet approach where an
-    average is taken over the whole tracker range.
-
-    The resulting average is clipped to a "half window" bound, then applied as a uniform
-    vertical shift to the post-slope-correction heights.
+    Moves all the piles in the tracker based on the average distance of piles currently outside
+    the grading window. Only applied to trackers that have atleast one pile in violation.
 
     Parameters
     ----------
-    project : Project
-        Project containing grading constraints used for window bounds.
     tracker : TerrainFollowingTracker
-        Tracker containing the piles to be adjusted.
-    heights_after1 : list[float]
-        Snapshot of pile heights after alteration 1.
-    heights_after_correction : list[float]
-        Snapshot of pile heights after slope correction (baseline for this alteration).
-
-    Returns
-    -------
-    None
-        Changes pile heights in-place.
+        The tracker containing the piles to be adjusted.
+    violating_piles : list[dict[str, float]]
+        List of piles that are still outside of the grading window after previous alterations.
     """
     # determine the average distance that piles are outside the grading window
     total_distance = 0.0
@@ -452,6 +446,7 @@ def alteration3(
             dist_to_window = 0
         total_distance += dist_to_window
     average_distance = total_distance / tracker.pole_count
+    # print(tracker.tracker_id, average_distance)
     # if the average distance is larger than half the grading window, limit the adjustment
     half_window = (
         tracker.get_first().true_max_height(project) + tracker.get_first().true_min_height(project)
@@ -464,53 +459,22 @@ def alteration3(
 
 def main(project: Project) -> None:
     """
-    Run grading optimisation for all terrain-following trackers in a project.
-
-    High-level flow per tracker:
-      1) Build grading window.
-      2) Initialise pile heights to a target-height line.
-      3) If there are violations, apply the flat-tracker sliding_line optimisation to the
-         initial line (prior to terrain-following alterations).
-      4) Perform terrain-following alterations:
-           - alteration1 (window-limited moves)
-           - slope_correction (segment slope-delta enforcement)
-           - alteration2 (carry-forward deviation)
-           - alteration3 (average tracker shift)
-      5) Apply final grading for any remaining violations.
-      6) Finalise pile outputs (final elevation, total height, revealed height).
+    Run grading optimisation for all trackers in a project.
 
     Parameters
     ----------
     project : Project
         Project containing trackers and grading constraints.
-
-    Returns
-    -------
-    None
     """
     for tracker in project.trackers:
         # determine the grading window for the tracker
         window = grading_window(project, tracker)
 
+        """Try sliding first"""
+
         # set the tracker piles to the target height line
         slope, y_intercept, target_heights = target_height_line(tracker, project)
         piles_outside1 = check_within_window(window, tracker)
-        if piles_outside1:
-            window_half = (
-                piles_outside1[0]["grading_window_max"] - piles_outside1[0]["grading_window_min"]
-            ) / 2.0
-
-            intercept_span = max(1e-6, 4.0 * window_half)
-
-            slope, y_intercept = sliding_line(
-                tracker,
-                project,
-                slope,
-                y_intercept,
-                intercept_span=intercept_span,
-                slope_tolerance=0.05,
-                slope_steps=11,
-            )
 
         if piles_outside1:
             tracker.create_segments()
@@ -519,7 +483,9 @@ def main(project: Project) -> None:
                 tracker, project, updated_piles_outside1, target_heights
             )
 
-            alteration2(tracker, target_heights, heights_after1)
+            # alteration2(tracker, target_heights, heights_after1)
+            # for pile in tracker.piles:  ##############
+            #     print(tracker.tracker_id, pile.pile_in_tracker, pile.pile_id, pile.height)
             alteration3(project, tracker, heights_after1, heights_after_correction)
 
         # complete final grading for any piles still outside of the window
@@ -533,6 +499,12 @@ def main(project: Project) -> None:
             pile.set_final_elevation(pile.current_elevation)
             pile.set_total_height(pile.height)
             pile.set_total_revealed()
+
+        #   PRINT FOR TESTING
+        # for pile in tracker.piles:
+        #     print(
+        #         f"{pile.pile_id} IZ: {pile.initial_elevation} FZ: {pile.final_elevation} change: {pile.final_elevation - pile.initial_elevation} height: {pile.total_height}"
+        #     )
 
 
 if __name__ == "__main__":
