@@ -58,7 +58,7 @@ def _window_by_pile_in_tracker(window: list[dict[str, float]]) -> Dict[int, tupl
     Returns
     -------
     Dict[int, tuple[float, float]]
-        Dictionary mapping pile_id to (min_height, max_height).
+        Dictionary mapping pile_in_tracker to (min_height, max_height).
     """
     out: Dict[int, tuple[float, float]] = {}
     for row in window:

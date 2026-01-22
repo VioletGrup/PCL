@@ -145,22 +145,6 @@ class Project:
         return self.get_tracker_by_id(tracker_id).get_pile_in_tracker(pile_in_tracker)
         # raises ValueError if not found
 
-    def true_min_height(self, pile_id: float) -> float:
-        """Return the true minimum height for a given pile, accounting for tolerance
-        and flooding."""
-        pile = self.get_pile_by_id(pile_id)
-        assert pile is not None
-
-        return (
-            self.constraints.min_reveal_height
-            + self.constraints.pile_install_tolerance / 2
-            + pile.flooding_allowance
-        )
-
-    def true_max_height(self) -> float:
-        """Return the true maximum height for a given pile, accounting for tolerance."""
-        return self.constraints.max_reveal_height - self.constraints.pile_install_tolerance / 2
-
     def get_trackers_on_easting(self, easting: float, ignore_ids: list[int]) -> list[TrackerABC]:
         """Returns all the trackers with the same easting"""
         same_easting = []
