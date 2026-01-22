@@ -2,22 +2,41 @@
 import sys
 from pathlib import Path
 from typing import List, Optional
- 
+
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
- 
-# Add parent directory to path to import your modules
+from pydantic import BaseModel, Field
+
+# Add repo root to path so we can import modules from /PCL
 sys.path.append(str(Path(__file__).parent.parent.parent))
- 
-import flatTrackerGrading  # Import the module, not specific functions
-from BasePile import BasePile
-from BaseTracker import BaseTracker
+
+import flatTrackerGrading
 from Project import Project
 from ProjectConstraints import ProjectConstraints
- 
+
+# Base (flat) classes
+from BasePile import BasePile
+from BaseTracker import BaseTracker
+
+# XTR / terrain-following classes
+try:
+    from TerrainFollowingTracker import TerrainFollowingTracker
+except Exception:
+    TerrainFollowingTracker = None
+
+try:
+    from TerrainFollowingPile import TerrainFollowingPile
+except Exception:
+    TerrainFollowingPile = None
+
+# Terrain-following grading module
+try:
+    import terrainTrackerGrading
+except Exception:
+    terrainTrackerGrading = None
+
 router = APIRouter()
- 
- 
+
+
 class PileInput(BaseModel):
     pile_id: float
     pile_in_tracker: int
@@ -25,28 +44,43 @@ class PileInput(BaseModel):
     easting: float
     initial_elevation: float
     flooding_allowance: float = 0.0
- 
- 
+
+
 class ConstraintsInput(BaseModel):
+    """
+    Frontend sends:
+      - tracker_edge_overhang
+    Older backend expects:
+      - edge_overhang
+    ✅ Accept both via alias.
+    """
+
     min_reveal_height: float  # m
     max_reveal_height: float  # m
     pile_install_tolerance: float  # m
-    max_incline: float  # %
+    max_incline: float  # % (frontend provides %)
+
     target_height_percantage: float = 0.5
     max_angle_rotation: float = 0.0
-    edge_overhang: float = 0.0
-    # Terrain-following only
+
+    # ✅ Accept tracker_edge_overhang from frontend
+    edge_overhang: float = Field(0.0, alias="tracker_edge_overhang")
+
+    # XTR-only
     max_segment_deflection_deg: Optional[float] = None
     max_cumulative_deflection_deg: Optional[float] = None
- 
- 
+
+    class Config:
+        populate_by_name = True
+
+
 class GradingRequest(BaseModel):
     tracker_id: int
     tracker_type: str  # "flat" or "xtr"
     piles: List[PileInput]
     constraints: ConstraintsInput
- 
- 
+
+
 class PileResult(BaseModel):
     pile_id: float
     pile_in_tracker: int
@@ -56,10 +90,10 @@ class PileResult(BaseModel):
     final_elevation: float
     pile_revealed: float
     total_height: float
-    cut_fill: float  # positive = cut, negative = fill
+    cut_fill: float
     flooding_allowance: float = 0.0
- 
- 
+
+
 class GradingResponse(BaseModel):
     tracker_id: int
     tracker_type: str
@@ -70,14 +104,14 @@ class GradingResponse(BaseModel):
     success: bool
     message: str
     constraints: ConstraintsInput
- 
- 
+
+
 class ProjectGradingRequest(BaseModel):
     tracker_type: str  # "flat" or "xtr"
     piles: List[PileInput]
     constraints: ConstraintsInput
- 
- 
+
+
 class ProjectGradingResponse(BaseModel):
     total_cut: float
     total_fill: float
@@ -86,39 +120,115 @@ class ProjectGradingResponse(BaseModel):
     success: bool
     message: str
     constraints: ConstraintsInput
- 
- 
+
+
+def _pick_classes(tracker_type: str):
+    """
+    Choose the correct Tracker/Pile classes for flat vs XTR.
+    """
+    if tracker_type == "flat":
+        return BaseTracker, BasePile
+
+    if tracker_type == "xtr":
+        if TerrainFollowingTracker is None:
+            raise HTTPException(
+                status_code=500,
+                detail="TerrainFollowingTracker could not be imported. Check filename/import path.",
+            )
+        if TerrainFollowingPile is None:
+            raise HTTPException(
+                status_code=500,
+                detail="TerrainFollowingPile could not be imported. Check filename/import path.",
+            )
+        return TerrainFollowingTracker, TerrainFollowingPile
+
+    raise HTTPException(status_code=400, detail=f"Unknown tracker_type '{tracker_type}'")
+
+
+def _run_grading(project: Project, tracker_type: str) -> None:
+    """
+    Dispatch grading to correct algorithm.
+    """
+    if tracker_type == "flat":
+        flatTrackerGrading.main(project)
+        return
+
+    if tracker_type == "xtr":
+        if terrainTrackerGrading is None:
+            raise HTTPException(
+                status_code=501,
+                detail="terrainTrackerGrading could not be imported. Check backend env/dependencies.",
+            )
+
+        if hasattr(terrainTrackerGrading, "main"):
+            terrainTrackerGrading.main(project)
+            return
+
+        if hasattr(terrainTrackerGrading, "grade_project"):
+            terrainTrackerGrading.grade_project(project)
+            return
+
+        raise HTTPException(
+            status_code=501,
+            detail="terrainTrackerGrading has no main() or grade_project() entrypoint.",
+        )
+
+    raise HTTPException(status_code=400, detail=f"Unknown tracker_type '{tracker_type}'")
+
+
+def _ensure_xtr_ground_init(pile, initial_elevation: float) -> None:
+    """
+    Terrain-following grading uses pile.current_elevation as the *ground* elevation.
+    The Excel loader usually sets this. When coming from the API, we must set it.
+    """
+    # Preferred: the class exposes a setter
+    if hasattr(pile, "set_current_elevation") and callable(getattr(pile, "set_current_elevation")):
+        pile.set_current_elevation(initial_elevation)
+        return
+
+    # Fallback: set attribute directly if it exists
+    if hasattr(pile, "current_elevation"):
+        setattr(pile, "current_elevation", initial_elevation)
+        return
+
+    # If neither exists, surface a clear backend error
+    raise HTTPException(
+        status_code=500,
+        detail="TerrainFollowingPile missing current_elevation / set_current_elevation; cannot initialise XTR ground.",
+    )
+
+
 @router.post("/grade-tracker", response_model=GradingResponse)
 async def grade_single_tracker(request: GradingRequest):
     """
-    Grade a single tracker using either flat or terrain-following algorithm.
+    Grade a single tracker (flat or XTR).
     """
     try:
-        # Values are now expected in meters and ratios directly from frontend
         constraints = ProjectConstraints(
             min_reveal_height=request.constraints.min_reveal_height,
             max_reveal_height=request.constraints.max_reveal_height,
             pile_install_tolerance=request.constraints.pile_install_tolerance,
-            max_incline=request.constraints.max_incline / 100.0,  # Convert % to ratio
+            max_incline=request.constraints.max_incline / 100.0,
             target_height_percantage=request.constraints.target_height_percantage,
             max_angle_rotation=request.constraints.max_angle_rotation,
             max_segment_deflection_deg=request.constraints.max_segment_deflection_deg,
             max_cumulative_deflection_deg=request.constraints.max_cumulative_deflection_deg,
             edge_overhang=request.constraints.edge_overhang,
         )
- 
-        # Create project
+
         project_type = "terrain_following" if request.tracker_type == "xtr" else "standard"
         project = Project(
-            name=f"Tracker_{request.tracker_id}", project_type=project_type, constraints=constraints
+            name=f"Tracker_{request.tracker_id}",
+            project_type=project_type,
+            constraints=constraints,
         )
- 
-        # Create tracker
-        tracker = BaseTracker(tracker_id=request.tracker_id)
- 
-        # Add piles
+
+        TrackerCls, PileCls = _pick_classes(request.tracker_type)
+
+        tracker = TrackerCls(tracker_id=request.tracker_id)
+
         for pile_data in request.piles:
-            pile = BasePile(
+            pile = PileCls(
                 northing=pile_data.northing,
                 easting=pile_data.easting,
                 initial_elevation=pile_data.initial_elevation,
@@ -126,47 +236,36 @@ async def grade_single_tracker(request: GradingRequest):
                 pile_in_tracker=pile_data.pile_in_tracker,
                 flooding_allowance=pile_data.flooding_allowance,
             )
+
+            # ✅ XTR init: ensure current ground elevation is set
+            if request.tracker_type == "xtr":
+                _ensure_xtr_ground_init(pile, pile_data.initial_elevation)
+
             tracker.add_pile(pile)
- 
-        # Sort piles by position
+
         tracker.sort_by_pole_position()
- 
-        # Add tracker to project
         project.add_tracker(tracker)
- 
-        # Run grading algorithm
-        if request.tracker_type == "flat":
-            # Run flat tracker grading using the main function
-            flatTrackerGrading.main(project)
-        else:  # xtr / terrain-following
-            # For terrain-following, we need to implement the algorithm
-            raise HTTPException(
-                status_code=501, detail="Terrain-following grading not yet implemented in API."
-            )
- 
-        # Calculate results
+
+        _run_grading(project, request.tracker_type)
+
+        # Results
         pile_results = []
         total_cut = 0.0
         total_fill = 0.0
         violations = []
- 
+
+        min_reveal_m = request.constraints.min_reveal_height
+        max_reveal_m = request.constraints.max_reveal_height
+        tolerance = request.constraints.pile_install_tolerance
+
         for pile in tracker.piles:
             cut_fill = pile.final_elevation - pile.initial_elevation
             if cut_fill > 0:
                 total_cut += cut_fill
             else:
                 total_fill += abs(cut_fill)
- 
-            # Check for violations against ACTUAL project limits
-            min_reveal_m = request.constraints.min_reveal_height
-            max_reveal_m = request.constraints.max_reveal_height
- 
-            # Use the main branch tolerance logic (tolerance / 2)
-            tolerance = request.constraints.pile_install_tolerance
- 
-            if pile.pile_revealed < (
-                min_reveal_m + pile.flooding_allowance + tolerance / 2 - 0.0001
-            ):
+
+            if pile.pile_revealed < (min_reveal_m + pile.flooding_allowance + tolerance / 2 - 0.0001):
                 violations.append(
                     {
                         "pile_id": pile.pile_id,
@@ -184,7 +283,7 @@ async def grade_single_tracker(request: GradingRequest):
                         "limit": max_reveal_m - tolerance / 2,
                     }
                 )
- 
+
             pile_results.append(
                 PileResult(
                     pile_id=pile.pile_id,
@@ -199,7 +298,7 @@ async def grade_single_tracker(request: GradingRequest):
                     flooding_allowance=pile.flooding_allowance,
                 )
             )
- 
+
         return GradingResponse(
             tracker_id=request.tracker_id,
             tracker_type=request.tracker_type,
@@ -211,56 +310,56 @@ async def grade_single_tracker(request: GradingRequest):
             message=f"Successfully graded tracker {request.tracker_id}",
             constraints=request.constraints,
         )
- 
+
     except HTTPException:
         raise
     except Exception as e:
         import traceback
- 
+
         raise HTTPException(
-            status_code=500, detail=f"Grading failed: {str(e)}\n{traceback.format_exc()}"
+            status_code=500,
+            detail=f"Grading failed: {str(e)}\n{traceback.format_exc()}",
         )
- 
- 
+
+
 @router.post("/grade-project", response_model=ProjectGradingResponse)
 async def grade_project(request: ProjectGradingRequest):
     """
     Grade an entire project (all trackers).
     """
     try:
-        # Convert constraints
         constraints = ProjectConstraints(
             min_reveal_height=request.constraints.min_reveal_height,
             max_reveal_height=request.constraints.max_reveal_height,
             pile_install_tolerance=request.constraints.pile_install_tolerance,
-            max_incline=request.constraints.max_incline / 100.0,  # Convert % to ratio
+            max_incline=request.constraints.max_incline / 100.0,
             edge_overhang=request.constraints.edge_overhang,
             target_height_percantage=request.constraints.target_height_percantage,
             max_angle_rotation=request.constraints.max_angle_rotation,
             max_segment_deflection_deg=request.constraints.max_segment_deflection_deg,
             max_cumulative_deflection_deg=request.constraints.max_cumulative_deflection_deg,
-       
         )
- 
-        # Create project
+
         project_type = "terrain_following" if request.tracker_type == "xtr" else "standard"
         project = Project(
-            name="Full_Project_Analysis", project_type=project_type, constraints=constraints
+            name="Full_Project_Analysis",
+            project_type=project_type,
+            constraints=constraints,
         )
- 
+
+        TrackerCls, PileCls = _pick_classes(request.tracker_type)
+
         # Group piles by tracker
         piles_by_tracker = {}
         for p in request.piles:
             tracker_id = int(p.pile_id)
-            if tracker_id not in piles_by_tracker:
-                piles_by_tracker[tracker_id] = []
-            piles_by_tracker[tracker_id].append(p)
- 
-        # Create trackers and add to project
+            piles_by_tracker.setdefault(tracker_id, []).append(p)
+
+        # Create trackers and add piles
         for tid, piles in piles_by_tracker.items():
-            tracker = BaseTracker(tracker_id=tid)
+            tracker = TrackerCls(tracker_id=tid)
             for pile_data in piles:
-                pile = BasePile(
+                pile = PileCls(
                     northing=pile_data.northing,
                     easting=pile_data.easting,
                     initial_elevation=pile_data.initial_elevation,
@@ -268,29 +367,28 @@ async def grade_project(request: ProjectGradingRequest):
                     pile_in_tracker=pile_data.pile_in_tracker,
                     flooding_allowance=pile_data.flooding_allowance,
                 )
+
+                # ✅ XTR init: ensure current ground elevation is set
+                if request.tracker_type == "xtr":
+                    _ensure_xtr_ground_init(pile, pile_data.initial_elevation)
+
                 tracker.add_pile(pile)
- 
+
             tracker.sort_by_pole_position()
             project.add_tracker(tracker)
- 
-        # Run grading
-        if request.tracker_type == "flat":
-            flatTrackerGrading.main(project)
-        else:
-            raise HTTPException(
-                status_code=501, detail="Terrain-following grading not yet implemented in API."
-            )
- 
+
+        _run_grading(project, request.tracker_type)
+
         # Collect results
         pile_results = []
         total_cut = 0.0
         total_fill = 0.0
         violations = []
- 
+
         min_reveal_m = request.constraints.min_reveal_height
         max_reveal_m = request.constraints.max_reveal_height
         tolerance = request.constraints.pile_install_tolerance
- 
+
         for tracker in project.trackers:
             for pile in tracker.piles:
                 cut_fill = pile.final_elevation - pile.initial_elevation
@@ -298,11 +396,8 @@ async def grade_project(request: ProjectGradingRequest):
                     total_cut += cut_fill
                 else:
                     total_fill += abs(cut_fill)
- 
-                # Check violations against ACTUAL project limits (main branch tolerance logic)
-                if pile.pile_revealed < (
-                    min_reveal_m + pile.flooding_allowance + tolerance / 2 - 0.0001
-                ):
+
+                if pile.pile_revealed < (min_reveal_m + pile.flooding_allowance + tolerance / 2 - 0.0001):
                     violations.append(
                         {
                             "pile_id": pile.pile_id,
@@ -320,7 +415,7 @@ async def grade_project(request: ProjectGradingRequest):
                             "limit": max_reveal_m - tolerance / 2,
                         }
                     )
- 
+
                 pile_results.append(
                     PileResult(
                         pile_id=pile.pile_id,
@@ -335,7 +430,7 @@ async def grade_project(request: ProjectGradingRequest):
                         flooding_allowance=pile.flooding_allowance,
                     )
                 )
- 
+
         return ProjectGradingResponse(
             total_cut=total_cut,
             total_fill=total_fill,
@@ -345,12 +440,13 @@ async def grade_project(request: ProjectGradingRequest):
             message=f"Successfully graded {len(project.trackers)} trackers",
             constraints=request.constraints,
         )
- 
+
     except HTTPException:
         raise
     except Exception as e:
         import traceback
- 
+
         raise HTTPException(
-            status_code=500, detail=f"Grading failed: {str(e)}\n{traceback.format_exc()}"
+            status_code=500,
+            detail=f"Grading failed: {str(e)}\n{traceback.format_exc()}",
         )

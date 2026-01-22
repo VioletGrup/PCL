@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "./Uploads.css";
 
@@ -26,6 +26,53 @@ export default function Uploads() {
   const [statusMsg, setStatusMsg] = useState("");
   const [isDragging, setIsDragging] = useState(false);
 
+  // ✅ NEW: animated center toast (stays briefly, smooth enter/exit)
+  const [toast, setToast] = useState({
+    open: false,
+    visible: false, // controls animation phase
+    message: "",
+    variant: "info", // "info" | "success" | "error"
+  });
+
+  const TOAST_IN_MS = 180;     // enter animation duration
+  const TOAST_OUT_MS = 220;    // exit animation duration
+  const TOAST_DEFAULT_MS = 1500;
+
+  const timersRef = useRef({ in: null, out: null, hide: null });
+
+  const clearToastTimers = () => {
+    const t = timersRef.current;
+    if (t.in) window.clearTimeout(t.in);
+    if (t.hide) window.clearTimeout(t.hide);
+    if (t.out) window.clearTimeout(t.out);
+    timersRef.current = { in: null, out: null, hide: null };
+  };
+
+  const showToast = (message, variant = "info", ms = TOAST_DEFAULT_MS) => {
+    clearToastTimers();
+
+    // Mount immediately (open=true), then flip to visible on next tick for smooth CSS transition
+    setToast({ open: true, visible: false, message, variant });
+
+    timersRef.current.in = window.setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: true }));
+    }, 10);
+
+    // Start exit shortly before unmount
+    timersRef.current.hide = window.setTimeout(() => {
+      setToast((prev) => ({ ...prev, visible: false }));
+      timersRef.current.out = window.setTimeout(() => {
+        setToast({ open: false, visible: false, message: "", variant: "info" });
+      }, TOAST_OUT_MS);
+    }, Math.max(350, ms));
+  };
+
+  useEffect(() => {
+    return () => {
+      clearToastTimers();
+    };
+  }, []);
+
   function validateAndSetFile(file) {
     setError("");
     setStatusMsg("");
@@ -37,11 +84,17 @@ export default function Uploads() {
 
     if (!isXlsx) {
       setBomFile(null);
-      setError("Please upload a valid .xlsx Excel file (BOM).");
+      const msg = "Please upload a valid .xlsx Excel file (BOM).";
+      setError(msg);
+      showToast(msg, "error", 1700);
       return;
     }
 
     setBomFile(file);
+
+    // ✅ Smooth centered success popup
+    showToast("File uploaded successfully", "success", 1400);
+
     setStatusMsg("File ready. Click Continue to review.");
   }
 
@@ -62,6 +115,7 @@ export default function Uploads() {
     setError("");
     setStatusMsg("");
     if (fileInputRef.current) fileInputRef.current.value = "";
+    showToast("File removed.", "info", 1200);
   }
 
   function continueToReview() {
@@ -69,9 +123,14 @@ export default function Uploads() {
     setStatusMsg("");
 
     if (!bomFile) {
-      setError("Please upload your BOM .xlsx file to continue.");
+      const msg = "Please upload your BOM .xlsx file to continue.";
+      setError(msg);
+      showToast(msg, "error", 1700);
       return;
     }
+
+    // small smooth confirmation
+    showToast("Opening Review…", "info", 850);
 
     navigate("/review", {
       state: {
@@ -87,6 +146,27 @@ export default function Uploads() {
 
   return (
     <div className="upl-shell">
+      {/* ✅ Smooth animated center toast/overlay */}
+      {toast.open && (
+        <div className={`upl-toastOverlay ${toast.visible ? "is-visible" : ""}`}>
+          <div
+            className={[
+              "upl-toastCard",
+              toast.variant === "success" ? "is-success" : "",
+              toast.variant === "error" ? "is-error" : "",
+              toast.visible ? "is-visible" : "",
+            ].join(" ")}
+            role="status"
+            aria-live="polite"
+          >
+            <div className="upl-toastIcon" aria-hidden="true">
+              {toast.variant === "success" ? "✓" : toast.variant === "error" ? "!" : "i"}
+            </div>
+            <div className="upl-toastText">{toast.message}</div>
+          </div>
+        </div>
+      )}
+
       {/* Background (matches App landing page) */}
       <div className="upl-bg" aria-hidden="true">
         <img src={backgroundImage} alt="" className="upl-bgImg" />
@@ -130,8 +210,8 @@ export default function Uploads() {
           <h1 className="upl-h1">BOM Upload</h1>
 
           <p className="upl-subtitle">
-            Upload your <span className="upl-em">BOM Excel file (.xlsx)</span>. You’ll
-            review it on the next page before continuing.
+            Upload your <span className="upl-em">BOM Excel file (.xlsx)</span>. You’ll review it
+            on the next page before continuing.
           </p>
         </div>
 
@@ -217,9 +297,7 @@ export default function Uploads() {
 
                 <div className="upl-fileMeta">
                   <div className="upl-fileName">{bomFile.name}</div>
-                  <div className="upl-fileSub">
-                    {(bomFile.size / 1024 / 1024).toFixed(2)} MB
-                  </div>
+                  <div className="upl-fileSub">{(bomFile.size / 1024 / 1024).toFixed(2)} MB</div>
                 </div>
               </div>
 
