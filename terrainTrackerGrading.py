@@ -386,50 +386,6 @@ def slope_correction(
     return heights_after_correction
 
 
-# def alteration2(
-#     tracker: TerrainFollowingTracker, target_heights: list[float], heights_after1: list[float]
-# ) -> None:
-#     """
-#     Moves piles within tracker based on if the pile before was moved previously
-#     For each pile i, compute:
-
-#         diff_i = heights_after1[i] - target_heights[i]
-
-#     If diff_i != 0, then apply the same vertical offset to the NEXT pile (i+1).
-#     This matches the "carry forward" adjustment logic used in the spreadsheet approach.
-
-#     Notes
-#     -----
-#     This function mutates `tracker.piles` in-place.
-
-#     Parameters
-#     ----------
-#     tracker : TerrainFollowingTracker
-#         Tracker containing the piles to be adjusted.
-#     target_heights : list[float]
-#         Original target-line heights for each pile.
-#     heights_after1 : list[float]
-#         Snapshot of pile heights after alteration 1 (used to compute the deviation).
-
-#     Returns
-#     -------
-#     None
-#         Changes pile heights in-place.
-#     """
-#     tracker.sort_by_pole_position()
-
-#     for pile in tracker.piles:
-#         if (
-#             pile.pile_in_tracker != tracker.pole_count
-#             and pile.pile_in_tracker != tracker.pole_count - 1
-#         ):
-#             array_index = pile.pile_in_tracker - 1
-#             diff = heights_after1[array_index] - target_heights[array_index]
-#             if diff != 0:
-#                 # if tracker was previously moved up or down move the next one the same amount
-#                 tracker.get_pile_in_tracker(pile.pile_in_tracker + 1).height += diff
-
-
 def alteration3(
     project: Project,
     tracker: TerrainFollowingTracker,
@@ -573,7 +529,6 @@ def main(project: Project) -> None:
                 tracker, project, updated_piles_outside1, target_heights
             )
 
-            # alteration2(tracker, target_heights, heights_after1)
             alteration3(project, tracker, heights_after1, heights_after_correction)
 
         # complete final grading for any piles still outside of the window
