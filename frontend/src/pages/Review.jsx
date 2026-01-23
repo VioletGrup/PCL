@@ -4,6 +4,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import "./Review.css";
 
+import pclLogo from "../assets/logos/pcllogo.png";
+import backgroundImage from "../assets/logos/Australia-Office-2025.png";
+
 export default function Review() {
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -31,6 +34,31 @@ export default function Review() {
   const [zCol, setZCol] = useState("I"); // ✅ Z terrain enter
 
   const [isApplying, setIsApplying] = useState(false);
+
+  // ✅ NEW: status overlay control
+  const [statusOverlay, setStatusOverlay] = useState({
+    open: false,
+    message: "",
+    variant: "info", // "info" | "success"
+  });
+
+  const showStatusOverlay = (message, variant = "info") => {
+    setStatus(message);
+    setStatusOverlay({ open: true, message, variant });
+  };
+
+  const hideStatusOverlay = () => {
+    setStatusOverlay({ open: false, message: "", variant: "info" });
+  };
+
+  const showAppliedOverlay = () => {
+    // show centered "Applied." briefly, then auto-hide and clear status
+    showStatusOverlay("Applied.", "success");
+    setTimeout(() => {
+      hideStatusOverlay();
+      setStatus("");
+    }, 1200);
+  };
 
   // ---------- helpers ----------
   const norm = (v) =>
@@ -111,6 +139,7 @@ export default function Review() {
     const { matchedSheetName, rows } = await readPilingRows(bomFile);
 
     let headerRowIndex = -1;
+    let isFallback = false;
 
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i] || [];
@@ -121,15 +150,21 @@ export default function Review() {
       const yH = norm(r[idx.y]);
       const zH = norm(r[idx.z]);
 
-      const tableOk = tableH === "table";
-      const poleOk = poleH === "pole";
-      const xOk = xH === "x";
-      const yOk = yH === "y";
+      // Loosen matching: allow EXACT or INCLUDES (aliases)
+      const tableOk =
+        tableH === "table" ||
+        tableH.includes("table") ||
+        tableH.includes("tracker") ||
+        tableH.includes("frame");
+      const poleOk = poleH === "pole" || poleH.includes("pole") || poleH.includes("pile");
+      const xOk = xH === "x" || xH.includes("east");
+      const yOk = yH === "y" || yH.includes("north");
       const zOk =
-        zH === "z terrain enter" ||
         zH === "z" ||
+        (zH.includes("z") && zH.includes("enter")) ||
         zH.includes("terrain") ||
-        (zH.includes("z") && zH.includes("enter"));
+        zH.includes("ground") ||
+        zH.includes("elev");
 
       if (tableOk && poleOk && xOk && yOk && zOk) {
         headerRowIndex = i;
@@ -138,15 +173,15 @@ export default function Review() {
     }
 
     if (headerRowIndex === -1) {
-      throw new Error(
-        `Could not find header row using mapping Frame=${frameCol}, Pole=${poleCol}, X=${xCol}, Y=${yCol}, Z=${zCol}.`
-      );
+      headerRowIndex = 0;
+      isFallback = true;
     }
 
     const startIndex = headerRowIndex + 1;
-    persistSafely("pcl_data_start_index", String(startIndex)); // tiny, safe
+    persistSafely("pcl_data_start_index", String(startIndex));
 
-    return extractColumnsNoHeaderFromRows(rows, idx, startIndex, matchedSheetName);
+    const result = extractColumnsNoHeaderFromRows(rows, idx, startIndex, matchedSheetName);
+    return { ...result, isFallback };
   }
 
   /**
@@ -196,7 +231,7 @@ export default function Review() {
       emptyStreak = 0;
 
       outFrame.push(toNumberIfPossible(fVal)); // usually numeric
-      outPole.push(toNumberIfPossible(pVal));  // must be numeric
+      outPole.push(toNumberIfPossible(pVal)); // must be numeric
       outX.push(xVal);
       outY.push(yVal);
       outZ.push(zVal);
@@ -213,8 +248,9 @@ export default function Review() {
   useEffect(() => {
     setError("");
     setStatus("");
+    hideStatusOverlay();
 
-    // restore mapping letters if saved
+    // 1. restore mapping letters if saved (always useful)
     try {
       const saved = JSON.parse(localStorage.getItem("pcl_mapping_letters") || "null");
       if (saved?.frame) setFrameCol(String(saved.frame).toUpperCase());
@@ -226,7 +262,69 @@ export default function Review() {
       // ignore
     }
 
-    // prefer localStorage columns (instant)
+    // 2. PRIORITY: If we have a file in state, it's a new upload. Extract from it.
+    const bomFile = state?.bomFile || null;
+    if (bomFile) {
+      (async () => {
+        try {
+          showStatusOverlay("Loading sheet…", "info");
+
+          const idx = {
+            frame: letterToColIndex(frameCol) ?? 0, // A
+            pole: letterToColIndex(poleCol) ?? 2, // C
+            x: letterToColIndex(xCol) ?? 3, // D
+            y: letterToColIndex(yCol) ?? 4, // E
+            z: letterToColIndex(zCol) ?? 8, // I
+          };
+
+          const { matchedSheetName, outFrame, outPole, outX, outY, outZ, isFallback } =
+            await extractColumnsDefault(bomFile, idx);
+
+          setFileName(state?.fileName || bomFile.name || "");
+          setSheetName(matchedSheetName);
+
+          setFrame(outFrame);
+          setPole(outPole);
+          setX(outX);
+          setY(outY);
+          setZ(outZ);
+
+          if (isFallback) {
+            setStatus(
+              "Note: Headers not found automatically. Please verify column assignments below."
+            );
+          } else {
+            setStatus("");
+          }
+
+          // cache for refresh-safe (best effort)
+          persistSafely("pcl_columns_frame", JSON.stringify(outFrame));
+          persistSafely("pcl_columns_pole", JSON.stringify(outPole));
+          persistSafely("pcl_columns_x", JSON.stringify(outX));
+          persistSafely("pcl_columns_y", JSON.stringify(outY));
+          persistSafely("pcl_columns_z", JSON.stringify(outZ));
+
+          persistSafely(
+            "pcl_config",
+            JSON.stringify({
+              fileName: state?.fileName || bomFile.name,
+              sheetName: matchedSheetName,
+              trackerType: "flat",
+            })
+          );
+
+          // close overlay after successful load
+          hideStatusOverlay();
+        } catch (e) {
+          hideStatusOverlay();
+          setStatus("");
+          setError(e?.message || "Failed to read BOM file.");
+        }
+      })();
+      return;
+    }
+
+    // 3. FALLBACK: Prefer localStorage columns if no file in state (e.g. refresh)
     try {
       const frameLS = JSON.parse(localStorage.getItem("pcl_columns_frame") || "[]");
       const poleLS = JSON.parse(localStorage.getItem("pcl_columns_pole") || "[]");
@@ -235,12 +333,12 @@ export default function Review() {
       const zLS = JSON.parse(localStorage.getItem("pcl_columns_z") || "[]");
       const cfg = JSON.parse(localStorage.getItem("pcl_config") || "{}");
 
-      setFileName(state?.fileName || cfg.fileName || "");
-      setSheetName(cfg.sheetName || "Piling information");
-      setTrackerType(cfg.trackerType || "flat");
-
       if (poleLS.length && xLS.length && yLS.length && zLS.length) {
-        setFrame(frameLS); // may be empty on older runs; that's ok
+        setFileName(cfg.fileName || "");
+        setSheetName(cfg.sheetName || "Piling information");
+        setTrackerType(cfg.trackerType || "flat");
+
+        setFrame(frameLS);
         setPole(poleLS);
         setX(xLS);
         setY(yLS);
@@ -248,78 +346,11 @@ export default function Review() {
         return;
       }
     } catch {
-      // ignore; we will try extracting from bomFile next
+      // ignore
     }
 
-    // if no localStorage columns yet, extract from bomFile in navigation state
-    const bomFile = state?.bomFile || null;
-    if (!bomFile) {
-      setError("No BOM file found. Go back to Uploads and continue again.");
-      return;
-    }
-
-    (async () => {
-      try {
-        setStatus("Loading sheet…");
-
-        const idx = {
-          frame: letterToColIndex(frameCol) ?? 0, // A
-          pole: letterToColIndex(poleCol) ?? 2,  // C
-          x: letterToColIndex(xCol) ?? 3,        // D
-          y: letterToColIndex(yCol) ?? 4,        // E
-          z: letterToColIndex(zCol) ?? 8,        // I
-        };
-
-        const { matchedSheetName, outFrame, outPole, outX, outY, outZ } =
-          await extractColumnsDefault(bomFile, idx);
-
-        setFileName(state?.fileName || bomFile.name || "");
-        setSheetName(matchedSheetName);
-
-        setFrame(outFrame);
-        setPole(outPole);
-        setX(outX);
-        setY(outY);
-        setZ(outZ);
-
-        setStatus("");
-
-        // cache for refresh-safe (best effort)
-        const okF = persistSafely("pcl_columns_frame", JSON.stringify(outFrame));
-        const ok1 = persistSafely("pcl_columns_pole", JSON.stringify(outPole));
-        const ok2 = persistSafely("pcl_columns_x", JSON.stringify(outX));
-        const ok3 = persistSafely("pcl_columns_y", JSON.stringify(outY));
-        const ok4 = persistSafely("pcl_columns_z", JSON.stringify(outZ));
-
-        persistSafely(
-          "pcl_config",
-          JSON.stringify({
-            fileName: state?.fileName || bomFile.name,
-            sheetName: matchedSheetName,
-            trackerType: "flat",
-          })
-        );
-
-        persistSafely(
-          "pcl_mapping_letters",
-          JSON.stringify({
-            frame: frameCol,
-            pole: poleCol,
-            x: xCol,
-            y: yCol,
-            z: zCol,
-          })
-        );
-
-        if (!(ok1 && ok2 && ok3 && ok4 && okF)) {
-          setStatus("Loaded. Note: browser storage is full, so refresh may require re-upload.");
-        }
-      } catch (e) {
-        setStatus("");
-        setError(e?.message || "Failed to read BOM file.");
-      }
-    })();
-
+    // 4. ERROR: No file and no cache
+    setError("No BOM data found. Go back to Uploads and try again.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
@@ -329,15 +360,6 @@ export default function Review() {
 
   const PREVIEW_N = 2000;
   const previewCount = Math.min(rowCount || 0, PREVIEW_N);
-
-  function proceedToGradingTool() {
-    setError("");
-    if (!rowCount) {
-      setError("No rows found. Go back to Uploads and upload your BOM.");
-      return;
-    }
-    navigate("/proceed-grading");
-  }
 
   function goToParameters() {
     setError("");
@@ -376,7 +398,7 @@ export default function Review() {
 
       const startIndex = Number(localStorage.getItem("pcl_data_start_index")) || 0;
 
-      setStatus("Applying mapping…");
+      showStatusOverlay("Applying mapping…", "info");
 
       const { matchedSheetName, outFrame, outPole, outX, outY, outZ } =
         await extractColumnsNoHeader(
@@ -396,13 +418,7 @@ export default function Review() {
       // save mapping letters only (safe)
       persistSafely(
         "pcl_mapping_letters",
-        JSON.stringify({
-          frame: frameCol,
-          pole: poleCol,
-          x: xCol,
-          y: yCol,
-          z: zCol,
-        })
+        JSON.stringify({ frame: frameCol, pole: poleCol, x: xCol, y: yCol, z: zCol })
       );
 
       // best-effort cache columns
@@ -421,13 +437,19 @@ export default function Review() {
         })
       );
 
+      // close overlay + show applied in center
+      hideStatusOverlay();
+
       if (!(ok1 && ok2 && ok3 && ok4 && okF)) {
         setStatus("Applied. Note: browser storage is full, so refresh may require re-upload.");
+        // still show the center "Applied." briefly
+        showAppliedOverlay();
       } else {
         setStatus("Applied.");
-        setTimeout(() => setStatus(""), 1200);
+        showAppliedOverlay();
       }
     } catch (e) {
+      hideStatusOverlay();
       setStatus("");
       setError(e?.message || "Failed to apply mapping.");
     } finally {
@@ -435,156 +457,241 @@ export default function Review() {
     }
   }
 
-  const templateName =
-    trackerType === "xtr" ? "XTR.xlsm" : "Flat Tracker Imperial.xlsm";
+  const templateName = trackerType === "xtr" ? "XTR.xlsm" : "Flat Tracker Imperial.xlsm";
 
   return (
-    <div className="review-shell">
-      <div className="review-topbar">
-        <div className="review-left">
-          <h1 className="review-title">Copied Columns</h1>
-
-          <div className="review-meta">
-            <div className="review-filename">{fileName || "—"}</div>
-
-            <div className="review-count">
-              Sheet: <strong>{sheetName || "—"}</strong> · Rows copied:{" "}
-              <strong>{rowCount || 0}</strong>
-              {rowCount > PREVIEW_N ? ` (showing first ${PREVIEW_N})` : ""}
-            </div>
-
-            <div className="review-count">
-              Tracker: <strong>{trackerType.toUpperCase()}</strong> · Template:{" "}
-              <strong>{templateName}</strong>
-            </div>
-
-            <div className="review-count">
-              Columns:{" "}
-              <strong>
-                Frame={frameCol}, Pole={poleCol}, X={xCol}, Y={yCol}, Z={zCol}
-              </strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="review-actions">
-          <Link to="/uploads" className="review-link">
-            ← Back
-          </Link>
-
-          <button className="review-btn" onClick={() => navigate("/uploads")}>
-            Upload New
-          </button>
-
-          <button
-            className="review-primary"
-            onClick={goToParameters}
-            disabled={!rowCount}
-            title="Go to the next step to enter parameters"
+    <div className="rv-shell">
+      {/* ✅ CENTER STATUS OVERLAY */}
+      {statusOverlay.open && (
+        <div className="rv-statusOverlay" role="status" aria-live="polite">
+          <div
+            className={`rv-statusCard ${
+              statusOverlay.variant === "success" ? "rv-statusCardSuccess" : ""
+            }`}
           >
-            Next: Parameters →
-          </button>
-        </div>
-      </div>
-
-      <div className="review-mappingbar">
-        <div className="inst-title">Column assignments (change if needed)</div>
-
-        <div className="review-maprow">
-          <div className="review-mapfield">
-            <label>Frame</label>
-            <input
-              className="review-mapinput"
-              value={frameCol}
-              onChange={(e) => setFrameCol(sanitizeLetters(e.target.value))}
-              placeholder="A"
-            />
-          </div>
-
-          <div className="review-mapfield">
-            <label>Pole</label>
-            <input
-              className="review-mapinput"
-              value={poleCol}
-              onChange={(e) => setPoleCol(sanitizeLetters(e.target.value))}
-              placeholder="C"
-            />
-          </div>
-
-          <div className="review-mapfield">
-            <label>X</label>
-            <input
-              className="review-mapinput"
-              value={xCol}
-              onChange={(e) => setXCol(sanitizeLetters(e.target.value))}
-              placeholder="D"
-            />
-          </div>
-
-          <div className="review-mapfield">
-            <label>Y</label>
-            <input
-              className="review-mapinput"
-              value={yCol}
-              onChange={(e) => setYCol(sanitizeLetters(e.target.value))}
-              placeholder="E"
-            />
-          </div>
-
-          <div className="review-mapfield">
-            <label>Z</label>
-            <input
-              className="review-mapinput"
-              value={zCol}
-              onChange={(e) => setZCol(sanitizeLetters(e.target.value))}
-              placeholder="I"
-            />
-          </div>
-
-          <button className="review-btn" onClick={applyMapping} disabled={isApplying}>
-            {isApplying ? "Applying…" : "Apply"}
-          </button>
-
-          <div className="inst-list">
-            Default: Frame=A, Pole=C, X=D, Y=E, Z=I (Z terrain enter). Manual Apply ignores headers and shows chosen columns.
+            <div className="rv-statusSpinner" aria-hidden="true" />
+            <div className="rv-statusText">{statusOverlay.message}</div>
           </div>
         </div>
+      )}
+
+      {/* Background */}
+      <div className="rv-bg" aria-hidden="true">
+        <img src={backgroundImage} alt="" className="rv-bgImg" />
+        <div className="rv-bgOverlay" />
+        <div className="rv-gridOverlay" />
       </div>
 
-      {status && <div className="review-status">{status}</div>}
-      {error && <div className="review-error">{error}</div>}
+      {/* Header */}
+      <header className="rv-header">
+        <div className="rv-headerInner">
+          <div className="rv-brand">
+            <img src={pclLogo} alt="PCL Logo" className="rv-logo" />
+            <div className="rv-brandText">
+              <div className="rv-brandTitle">Earthworks Analysis Tool</div>
+              <div className="rv-brandSub">Review → Parameters → Run</div>
+            </div>
+          </div>
 
-      <div className="review-window">
-        {!rowCount ? (
-          <div className="review-empty">No data to display.</div>
-        ) : (
-          <table className="review-table">
-            <thead>
-              <tr>
-                <th>Frame ({frameCol})</th>
-                <th>Pole ({poleCol})</th>
-                <th>X ({xCol})</th>
-                <th>Y ({yCol})</th>
-                <th>Z ({zCol})</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: previewCount }).map((_, i) => (
-                <tr key={i}>
-                  <td>{String(frame[i] ?? "")}</td>
-                  <td>{String(pole[i] ?? "")}</td>
-                  <td>{String(x[i] ?? "")}</td>
-                  <td>{String(y[i] ?? "")}</td>
-                  <td>{String(z[i] ?? "")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+          <div className="rv-headerActions">
+            <Link to="/uploads" className="rv-navLink">
+              ← Back
+            </Link>
 
-      <div className="review-footer">
-        Next step: proceed to download the correct grading tool template and the auto-mapped Inputs CSV.
+            <button className="rv-btn rv-btnGhost" onClick={() => navigate("/uploads")}>
+              Upload New
+            </button>
+
+            <button
+              className="rv-btn rv-btnPrimary"
+              onClick={goToParameters}
+              disabled={!rowCount}
+              title="Go to the next step to enter parameters"
+            >
+              Next: Parameters →
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Scroll area */}
+      <div className="rv-mainScroll">
+        <main className="rv-main">
+          {/* Hero */}
+          <div className="rv-hero">
+            <div className="rv-badge">
+              <span className="rv-badgeDot" />
+              Review Extracted Columns
+            </div>
+
+            <h1 className="rv-h1">Copied Columns</h1>
+
+            <div className="rv-metaCard">
+              <div className="rv-metaRow">
+                <div className="rv-metaLabel">File</div>
+                <div className="rv-metaValue">{fileName || "—"}</div>
+              </div>
+
+              <div className="rv-metaGrid">
+                <div className="rv-metaItem">
+                  <div className="rv-miniLabel">Sheet</div>
+                  <div className="rv-miniValue">{sheetName || "—"}</div>
+                </div>
+
+                <div className="rv-metaItem">
+                  <div className="rv-miniLabel">Rows copied</div>
+                  <div className="rv-miniValue">
+                    {rowCount || 0}
+                    {rowCount > PREVIEW_N ? ` (showing first ${PREVIEW_N})` : ""}
+                  </div>
+                </div>
+              </div>
+
+              <div className="rv-columnsLine">
+                Tracker: <strong>{trackerType.toUpperCase()}</strong> · Template:{" "}
+                <strong>{templateName}</strong>
+                <br />
+                Columns:{" "}
+                <strong>
+                  Frame={frameCol}, Pole={poleCol}, X={xCol}, Y={yCol}, Z={zCol}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Mapping card */}
+          <section className="rv-card rv-cardTight">
+            <div className="rv-cardHead rv-cardHeadTight">
+              <div>
+                <h2 className="rv-cardTitle">Column assignments (change if needed)</h2>
+                <p className="rv-cardSub">
+                  Default: Frame=A, Pole=C, X=D, Y=E, Z=I (Z terrain enter). Manual Apply
+                  ignores headers and reads the chosen columns.
+                </p>
+              </div>
+
+              <div className="rv-stepPill">
+                <span className="rv-stepDot" />
+                Step 2 of 3
+              </div>
+            </div>
+
+            <div className="rv-mapRow">
+              <div className="rv-field">
+                <label className="rv-label">Frame</label>
+                <input
+                  className="rv-input"
+                  value={frameCol}
+                  onChange={(e) => setFrameCol(sanitizeLetters(e.target.value))}
+                  placeholder="A"
+                />
+              </div>
+
+              <div className="rv-field">
+                <label className="rv-label">Pole</label>
+                <input
+                  className="rv-input"
+                  value={poleCol}
+                  onChange={(e) => setPoleCol(sanitizeLetters(e.target.value))}
+                  placeholder="C"
+                />
+              </div>
+
+              <div className="rv-field">
+                <label className="rv-label">X</label>
+                <input
+                  className="rv-input"
+                  value={xCol}
+                  onChange={(e) => setXCol(sanitizeLetters(e.target.value))}
+                  placeholder="D"
+                />
+              </div>
+
+              <div className="rv-field">
+                <label className="rv-label">Y</label>
+                <input
+                  className="rv-input"
+                  value={yCol}
+                  onChange={(e) => setYCol(sanitizeLetters(e.target.value))}
+                  placeholder="E"
+                />
+              </div>
+
+              <div className="rv-field">
+                <label className="rv-label">Z</label>
+                <input
+                  className="rv-input"
+                  value={zCol}
+                  onChange={(e) => setZCol(sanitizeLetters(e.target.value))}
+                  placeholder="I"
+                />
+              </div>
+
+              <button className="rv-btn" onClick={applyMapping} disabled={isApplying}>
+                {isApplying ? "Applying…" : "Apply"}
+              </button>
+            </div>
+
+            <div className="rv-hint">
+              Tip: If your headers weren’t detected automatically, just set the letters here and
+              press <strong>Apply</strong>.
+            </div>
+          </section>
+
+          {/* Alerts */}
+          {status && <div className="rv-alert rv-alertOk">{status}</div>}
+          {error && <div className="rv-alert rv-alertError">{error}</div>}
+
+          {/* Table */}
+          <section className="rv-card">
+            <div className="rv-cardHead">
+              <div>
+                <h2 className="rv-cardTitle">Preview</h2>
+                <p className="rv-cardSub">
+                  Showing {previewCount} of {rowCount || 0} rows.
+                </p>
+              </div>
+            </div>
+
+            <div className="rv-tableWrap">
+              {!rowCount ? (
+                <div className="rv-empty">No data to display.</div>
+              ) : (
+                <table className="rv-table">
+                  <thead>
+                    <tr>
+                      <th>Frame ({frameCol})</th>
+                      <th>Pole ({poleCol})</th>
+                      <th>X ({xCol})</th>
+                      <th>Y ({yCol})</th>
+                      <th>Z ({zCol})</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: previewCount }).map((_, i) => (
+                      <tr key={i}>
+                        <td>{String(frame[i] ?? "")}</td>
+                        <td>{String(pole[i] ?? "")}</td>
+                        <td>{String(x[i] ?? "")}</td>
+                        <td>{String(y[i] ?? "")}</td>
+                        <td>{String(z[i] ?? "")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            <div className="rv-footerNote">
+              Next step: proceed to download the correct grading tool template and the auto-mapped
+              Inputs CSV.
+            </div>
+          </section>
+        </main>
+
+        <footer className="rv-footer">
+          <span className="rv-footerMuted">PCL Earthworks Tool • Upload → Review → Parameters</span>
+        </footer>
       </div>
     </div>
   );

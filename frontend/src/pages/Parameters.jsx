@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import "./Parameters.css";
+
+import pclLogo from "../assets/logos/pcllogo.png";
+import backgroundImage from "../assets/logos/Australia-Office-2025.png";
 
 export default function Parameters() {
   const { state } = useLocation();
@@ -23,9 +26,12 @@ export default function Parameters() {
 
   // Shared fields (Flat + XTR)
   const [maxIncline, setMaxIncline] = useState(""); // %
-  const [minPileReveal, setMinPileReveal] = useState(""); // mm
-  const [maxPileReveal, setMaxPileReveal] = useState(""); // mm
-  const [installationTolerance, setInstallationTolerance] = useState(""); // mm
+  const [minPileReveal, setMinPileReveal] = useState(""); // m
+  const [maxPileReveal, setMaxPileReveal] = useState(""); // m
+  const [installationTolerance, setInstallationTolerance] = useState(""); // m
+
+  // ✅ NEW (Flat + XTR)
+  const [trackerEdgeOverhang, setTrackerEdgeOverhang] = useState(""); // m
 
   // XTR-only fields (slope change in %)
   const [maxSegmentSlopeChange, setMaxSegmentSlopeChange] = useState(""); // %
@@ -46,6 +52,9 @@ export default function Parameters() {
         setMinPileReveal(saved.minPileReveal ?? "");
         setMaxPileReveal(saved.maxPileReveal ?? "");
         setInstallationTolerance(saved.installationTolerance ?? "");
+
+        // ✅ restore new field
+        setTrackerEdgeOverhang(saved.trackerEdgeOverhang ?? "");
 
         setMaxSegmentSlopeChange(saved.maxSegmentSlopeChange ?? "");
         setMaxCumulativeSlopeChange(saved.maxCumulativeSlopeChange ?? "");
@@ -87,13 +96,15 @@ export default function Parameters() {
     }
   }, [trackerType]);
 
-  function goBack() {
-    navigate("/review");
-  }
-
   function validateRequired() {
     // Shared required
-    if (!maxIncline || !minPileReveal || !maxPileReveal || !installationTolerance) {
+    if (
+      !maxIncline ||
+      !minPileReveal ||
+      !maxPileReveal ||
+      !installationTolerance ||
+      !trackerEdgeOverhang
+    ) {
       return "Please complete all required fields.";
     }
 
@@ -135,6 +146,9 @@ export default function Parameters() {
       maxPileReveal,
       installationTolerance,
 
+      // ✅ New shared field
+      trackerEdgeOverhang,
+
       // XTR-only
       maxSegmentSlopeChange: trackerType === "xtr" ? maxSegmentSlopeChange : "",
       maxCumulativeSlopeChange: trackerType === "xtr" ? maxCumulativeSlopeChange : "",
@@ -150,214 +164,286 @@ export default function Parameters() {
   }
 
   return (
-    <div className="params-shell">
-      {/* Top bar */}
-      <header className="params-topbar">
-        <div className="params-left">
-          <button className="params-back" onClick={goBack}>
-            ← Back
-          </button>
+    <div className="pr-shell">
+      {/* Background */}
+      <div className="pr-bg" aria-hidden="true">
+        <img src={backgroundImage} alt="" className="pr-bgImg" />
+        <div className="pr-bgOverlay" />
+        <div className="pr-gridOverlay" />
+      </div>
 
-          <div className="params-titlewrap">
-            <h1 className="params-title">Project Parameters</h1>
-            <div className="params-subtitle">
-              Enter tracker limits and installation tolerances.
+      {/* Header */}
+      <header className="pr-header">
+        <div className="pr-headerInner">
+          <div className="pr-brand">
+            <img src={pclLogo} alt="PCL Logo" className="pr-logo" />
+            <div className="pr-brandText">
+              <div className="pr-brandTitle">Earthworks Analysis Tool</div>
+              <div className="pr-brandSub">Parameters → Run</div>
             </div>
           </div>
-        </div>
 
-        <div className="params-meta">
-          <div className="meta-chip">
-            <span className="meta-label">File</span>
-            <span className="meta-value">{fileName || "—"}</span>
-          </div>
-          <div className="meta-chip">
-            <span className="meta-label">Sheet</span>
-            <span className="meta-value">{sheetName || "—"}</span>
-          </div>
-          <div className="meta-chip">
-            <span className="meta-label">Rows</span>
-            <span className="meta-value">{rowCount || 0}</span>
-          </div>
-          <div className="meta-chip">
-            <span className="meta-label">Step</span>
-            <span className="meta-value">3 of 3</span>
+          <div className="pr-headerActions">
+            <Link to="/review" className="pr-navLink">
+              ← Back
+            </Link>
+
+            <div className="pr-stepPill">
+              <span className="pr-stepDot" />
+              Step 3 of 3
+            </div>
+
+            <button className="pr-btn pr-btnPrimary" onClick={proceed}>
+              Run Analysis →
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="params-content">
-        {/* Tracker type */}
-        <section className="params-card">
-          <h2 className="card-title">Tracker Type</h2>
-          <p className="card-desc">
-            This determines which inputs are required and which analysis path is run.
-          </p>
-
-          <div className="toggle-row">
-            <button
-              className={`toggle-btn ${trackerType === "flat" ? "is-active" : ""}`}
-              onClick={() => setTrackerType("flat")}
-              type="button"
-            >
-              Flat Tracker
-            </button>
-            <button
-              className={`toggle-btn ${trackerType === "xtr" ? "is-active" : ""}`}
-              onClick={() => setTrackerType("xtr")}
-              type="button"
-            >
-              XTR
-            </button>
-          </div>
-
-          <div className="small-note">
-            Required fields:{" "}
-            <strong>
-              {trackerType === "xtr"
-                ? "Max incline, Min/Max pile reveal, Max segment slope change, Max cumulative slope change, Installation tolerances"
-                : "Max incline, Min/Max pile reveal, Installation tolerances"}
-            </strong>
-          </div>
-        </section>
-
-        {/* Manufacturer (future auto-fill) */}
-        <section className="params-card">
-          <h2 className="card-title">Manufacturer</h2>
-          <p className="card-desc">
-            Selecting a manufacturer will auto-fill parameters in a future update.
-          </p>
-
-          <select
-            className="params-select"
-            value={manufacturer}
-            onChange={(e) => setManufacturer(e.target.value)}
-          >
-            <option value="">— Select manufacturer —</option>
-            <option value="nextracker">Nextracker</option>
-            <option value="pvh">PVH</option>
-            <option value="gamechange">GameChange</option>
-            <option value="ati">ATI</option>
-          </select>
-        </section>
-
-        {/* Required inputs */}
-        <section className="params-card">
-          <h2 className="card-title">
-            {trackerType === "xtr" ? "XTR Parameters" : "Flat Tracker Parameters"}
-          </h2>
-
-          <div className="form-grid">
-            <div className="form-field">
-              <label>Maximum incline (%)</label>
-              <input
-                className="params-input"
-                type="number"
-                value={maxIncline}
-                onChange={(e) => setMaxIncline(e.target.value)}
-                placeholder="e.g., 15"
-              />
+      {/* Scroll area */}
+      <div className="pr-mainScroll">
+        <main className="pr-main">
+          {/* Hero */}
+          <div className="pr-hero">
+            <div className="pr-badge">
+              <span className="pr-badgeDot" />
+              Project Setup
             </div>
 
-            <div className="form-field">
-              <label>Minimum pile reveal height (m)</label>
-              <input
-                className="params-input"
-                type="number"
-                value={minPileReveal}
-                onChange={(e) => setMinPileReveal(e.target.value)}
-                placeholder="e.g., 1.2"
-              />
-            </div>
+            <h1 className="pr-h1">Project Parameters</h1>
 
-            <div className="form-field">
-              <label>Maximum pile reveal height (m)</label>
-              <input
-                className="params-input"
-                type="number"
-                value={maxPileReveal}
-                onChange={(e) => setMaxPileReveal(e.target.value)}
-                placeholder="e.g., 3.2"
-              />
-            </div>
+            <p className="pr-subtitle">
+              Enter tracker limits and installation tolerances. These values are saved locally and
+              passed into the analysis step.
+            </p>
 
-            {/* XTR-only */}
-            {trackerType === "xtr" && (
-              <>
-                <div className="form-field">
-                  <label>Max segment slope change (%)</label>
-                  <input
-                    className="params-input"
-                    type="number"
-                    value={maxSegmentSlopeChange}
-                    onChange={(e) => setMaxSegmentSlopeChange(e.target.value)}
-                    placeholder="e.g., 1.0"
-                  />
-                  <div className="field-hint">
-                    Maximum change in slope between adjacent segments.
-                  </div>
-                </div>
-
-                <div className="form-field">
-                  <label>Max cumulative slope change (%)</label>
-                  <input
-                    className="params-input"
-                    type="number"
-                    value={maxCumulativeSlopeChange}
-                    onChange={(e) => setMaxCumulativeSlopeChange(e.target.value)}
-                    placeholder="e.g., 3.0"
-                  />
-                  <div className="field-hint">
-                    Maximum cumulative slope change along the torque tube.
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </section>
-
-        {/* Installation tolerances */}
-        <section className="params-card">
-          <h2 className="card-title">Installation Tolerances</h2>
-          <p className="card-desc">
-            Allows for construction deviations. Often a single value (e.g., 0.2 m) split
-            between the min and max reveal allowances. Do not hardcode; varies by project.
-          </p>
-
-          <div className="form-field single-field">
-            <label>Total installation tolerance (m)</label>
-            <input
-              className="params-input"
-              type="number"
-              value={installationTolerance}
-              onChange={(e) => setInstallationTolerance(e.target.value)}
-              placeholder="e.g., 0.2"
-            />
-            {halfTolerance !== null && (
-              <div className="field-hint">
-                Split suggestion: <strong>{halfTolerance}</strong> m to min +{" "}
-                <strong>{halfTolerance}</strong> m to max.
+            <div className="pr-metaCard">
+              <div className="pr-metaRow">
+                <div className="pr-metaLabel">File</div>
+                <div className="pr-metaValue">{fileName || "—"}</div>
               </div>
-            )}
+
+              <div className="pr-metaGrid">
+                <div className="pr-metaItem">
+                  <div className="pr-miniLabel">Sheet</div>
+                  <div className="pr-miniValue">{sheetName || "—"}</div>
+                </div>
+
+                <div className="pr-metaItem">
+                  <div className="pr-miniLabel">Rows</div>
+                  <div className="pr-miniValue">{rowCount || 0}</div>
+                </div>
+              </div>
+            </div>
           </div>
-        </section>
 
-        {error && <div className="params-error">{error}</div>}
+          {/* Tracker type */}
+          <section className="pr-card">
+            <div className="pr-cardHead pr-cardHeadTight">
+              <div>
+                <h2 className="pr-cardTitle">Tracker Type</h2>
+                <p className="pr-cardSub">
+                  This determines which inputs are required and which analysis path is run.
+                </p>
+              </div>
 
-        <div className="params-actions">
-          <button className="btn-secondary" onClick={goBack}>
-            ← Back
-          </button>
+              <div className="pr-pill">
+                <span className="pr-pillDot" />
+                Required inputs
+              </div>
+            </div>
 
-          <button className="btn-primary" onClick={proceed}>
-            Run Analysis →
-          </button>
-        </div>
-      </main>
+            <div className="pr-toggleRow">
+              <button
+                className={`pr-toggleBtn ${trackerType === "flat" ? "is-active" : ""}`}
+                onClick={() => setTrackerType("flat")}
+                type="button"
+              >
+                Flat Tracker
+              </button>
 
-      <footer className="params-footer">
-        PCL Earthworks Tool • Upload → Review → Parameters
-      </footer>
+              <button
+                className={`pr-toggleBtn ${trackerType === "xtr" ? "is-active" : ""}`}
+                onClick={() => setTrackerType("xtr")}
+                type="button"
+              >
+                XTR
+              </button>
+            </div>
+
+            <div className="pr-note">
+              Required fields:{" "}
+              <strong>
+                {trackerType === "xtr"
+                  ? "Max incline, Min/Max pile reveal, Tracker edge overhang, Max segment slope change, Max cumulative slope change, Installation tolerance"
+                  : "Max incline, Min/Max pile reveal, Tracker edge overhang, Installation tolerance"}
+              </strong>
+            </div>
+          </section>
+
+          {/* Manufacturer */}
+          <section className="pr-card">
+            <div className="pr-cardHead pr-cardHeadTight">
+              <div>
+                <h2 className="pr-cardTitle">Manufacturer</h2>
+                <p className="pr-cardSub">
+                  Selecting a manufacturer will auto-fill parameters in a future update.
+                </p>
+              </div>
+            </div>
+
+            <select
+              className="pr-select"
+              value={manufacturer}
+              onChange={(e) => setManufacturer(e.target.value)}
+            >
+              <option value="">— Select manufacturer —</option>
+              <option value="nextracker">Nextracker</option>
+              <option value="pvh">PVH</option>
+              <option value="gamechange">GameChange</option>
+              <option value="ati">ATI</option>
+            </select>
+          </section>
+
+          {/* Required inputs */}
+          <section className="pr-card">
+            <div className="pr-cardHead">
+              <div>
+                <h2 className="pr-cardTitle">
+                  {trackerType === "xtr" ? "XTR Parameters" : "Flat Tracker Parameters"}
+                </h2>
+                <p className="pr-cardSub">All fields in this section are required.</p>
+              </div>
+            </div>
+
+            <div className="pr-formGrid">
+              <div className="pr-field">
+                <label className="pr-label">Maximum incline (%)</label>
+                <input
+                  className="pr-input"
+                  type="number"
+                  value={maxIncline}
+                  onChange={(e) => setMaxIncline(e.target.value)}
+                  placeholder="e.g., 15"
+                />
+              </div>
+
+              <div className="pr-field">
+                <label className="pr-label">Minimum pile reveal height (m)</label>
+                <input
+                  className="pr-input"
+                  type="number"
+                  value={minPileReveal}
+                  onChange={(e) => setMinPileReveal(e.target.value)}
+                  placeholder="e.g., 1.2"
+                />
+              </div>
+
+              <div className="pr-field">
+                <label className="pr-label">Maximum pile reveal height (m)</label>
+                <input
+                  className="pr-input"
+                  type="number"
+                  value={maxPileReveal}
+                  onChange={(e) => setMaxPileReveal(e.target.value)}
+                  placeholder="e.g., 3.2"
+                />
+              </div>
+
+              {/* ✅ NEW shared parameter */}
+              <div className="pr-field">
+                <label className="pr-label">Tracker edge overhang (m)</label>
+                <input
+                  className="pr-input"
+                  type="number"
+                  value={trackerEdgeOverhang}
+                  onChange={(e) => setTrackerEdgeOverhang(e.target.value)}
+                  placeholder="e.g., 0.5"
+                />
+                <div className="pr-hint">
+                  Horizontal overhang beyond the outermost pile/torque tube reference (project-specific).
+                </div>
+              </div>
+
+              {/* XTR-only */}
+              {trackerType === "xtr" && (
+                <>
+                  <div className="pr-field">
+                    <label className="pr-label">Max segment slope change (%)</label>
+                    <input
+                      className="pr-input"
+                      type="number"
+                      value={maxSegmentSlopeChange}
+                      onChange={(e) => setMaxSegmentSlopeChange(e.target.value)}
+                      placeholder="e.g., 1.0"
+                    />
+                    <div className="pr-hint">Maximum change in slope between adjacent segments.</div>
+                  </div>
+
+                  <div className="pr-field">
+                    <label className="pr-label">Max cumulative slope change (%)</label>
+                    <input
+                      className="pr-input"
+                      type="number"
+                      value={maxCumulativeSlopeChange}
+                      onChange={(e) => setMaxCumulativeSlopeChange(e.target.value)}
+                      placeholder="e.g., 3.0"
+                    />
+                    <div className="pr-hint">
+                      Maximum cumulative slope change along the torque tube.
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
+
+          {/* Installation tolerances */}
+          <section className="pr-card">
+            <div className="pr-cardHead">
+              <div>
+                <h2 className="pr-cardTitle">Installation Tolerances</h2>
+                <p className="pr-cardSub">
+                  Often a single value split between min and max reveal allowances (varies by project).
+                </p>
+              </div>
+            </div>
+
+            <div className="pr-field pr-fieldSingle">
+              <label className="pr-label">Total installation tolerance (m)</label>
+              <input
+                className="pr-input"
+                type="number"
+                value={installationTolerance}
+                onChange={(e) => setInstallationTolerance(e.target.value)}
+                placeholder="e.g., 0.2"
+              />
+              {halfTolerance !== null && (
+                <div className="pr-hint">
+                  Split suggestion: <strong>{halfTolerance}</strong> m to min +{" "}
+                  <strong>{halfTolerance}</strong> m to max.
+                </div>
+              )}
+            </div>
+          </section>
+
+          {error && <div className="pr-alert pr-alertError">{error}</div>}
+
+          <div className="pr-actions">
+            <Link to="/review" className="pr-navLink">
+              ← Back
+            </Link>
+
+            <button className="pr-btn pr-btnPrimary" onClick={proceed}>
+              Run Analysis →
+            </button>
+          </div>
+        </main>
+
+        <footer className="pr-footer">
+          <span className="pr-footerMuted">PCL Earthworks Tool • Upload → Review → Parameters</span>
+        </footer>
+      </div>
     </div>
   );
 }

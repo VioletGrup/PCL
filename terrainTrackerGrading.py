@@ -274,7 +274,19 @@ def slope_correction(
     target_heights: list[float],
 ) -> None:
     """
-    Check to ensure that all segments are within the maximum segment deflection requirements.
+    Apply slope-change corrections to ensure segment-to-segment slope deltas are within limits.
+
+    This performs two steps:
+
+    1) Propagate alteration-1 movement into the adjacent (next) pile so that local deflection
+       constraints are not violated immediately by a single-pile move.
+
+    2) Iterate over internal piles to compute slope delta:
+
+           slope_delta = incoming_segment.slope() - outgoing_segment.slope()
+
+       If |slope_delta| exceeds project.max_strict_segment_slope_change, apply a vertical
+       correction proportional to incoming segment length.
 
     Parameters
     ----------
@@ -303,9 +315,7 @@ def slope_correction(
     if not tracker.segments:
         tracker.create_segments()
 
-    # for pile in tracker.piles:
-    #     print(pile.pile_id, pile.height)
-    for _ in range(3):  # iterate slope correction thrice
+    for _ in range(3):  # iterate slope correction twice
         # calculate slope delta: the difference between the incoming and outgoing segment slopes
         # for all piles
         for pile in tracker.piles:
@@ -315,7 +325,6 @@ def slope_correction(
                 incoming_segment = tracker.get_segment_by_id(pile.get_incoming_segment_id())
                 outgoing_segment = tracker.get_segment_by_id(pile.get_outgoing_segment_id(tracker))
                 slope_delta = incoming_segment.slope() - outgoing_segment.slope()
-                # print(pile.pile_id, slope_delta)
             length = abs(incoming_segment.length())
             if slope_delta > project.max_strict_segment_slope_change:
                 # upwards slope is steeper than allowed, lower the pile
@@ -326,9 +335,6 @@ def slope_correction(
             else:
                 correction = 0.0
             pile.height -= correction
-
-    # for pile in tracker.piles:
-    #     print(pile.pile_id, pile.height)
     heights_after_correction = []
     for pile in tracker.piles:
         heights_after_correction.append(pile.height)
@@ -366,7 +372,7 @@ def alteration3(
     average_distance = total_distance / tracker.pole_count
     # if the average distance is larger than half the grading window, limit the adjustment
     half_window = (
-        tracker.get_first().true_max_height(project) - tracker.get_first().true_min_height(project)
+        tracker.get_first().true_max_height(project) + tracker.get_first().true_min_height(project)
     ) / 2
     optimal_adjustment = max(-half_window, min(half_window, average_distance))
 
@@ -445,15 +451,14 @@ def main(project: Project) -> None:
                 tracker, project, updated_piles_outside1, target_heights
             )
 
-            # alteration2(tracker, target_heights, heights_after1)
-            # for pile in tracker.piles:  ##############
-            #     print(tracker.tracker_id, pile.pile_in_tracker, pile.pile_id, pile.height)
             alteration3(project, tracker, heights_after1, heights_after_correction)
+            piles_outside2 = check_within_window(window, tracker)
+            slope_correction(tracker, project, piles_outside2, heights_after_correction)
 
         # complete final grading for any piles still outside of the window
-        piles_outside2 = check_within_window(window, tracker)
-        if piles_outside2:
-            grading(tracker, piles_outside2)
+        piles_outside3 = check_within_window(window, tracker)
+        if piles_outside3:
+            grading(tracker, piles_outside3)
 
         # Set the final ground elevations, reveal heights and total heights of all piles,
         # some will remain the same
@@ -474,6 +479,7 @@ if __name__ == "__main__":
         max_angle_rotation=0.0,
         max_cumulative_deflection_deg=4.0,
         max_segment_deflection_deg=0.75,
+        edge_overhang=0.0,
     )
 
     # Load project from Excel

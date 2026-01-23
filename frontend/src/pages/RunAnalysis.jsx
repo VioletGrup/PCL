@@ -3,6 +3,9 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import Plot from "react-plotly.js";
 import "./RunAnalysis.css";
 
+import pclLogo from "../assets/logos/pcllogo.png";
+import backgroundImage from "../assets/logos/Australia-Office-2025.png";
+
 export default function RunAnalysis() {
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -42,6 +45,14 @@ export default function RunAnalysis() {
     const n = Number(s);
     if (Number.isFinite(n)) return String(Math.trunc(n));
     return s;
+  };
+
+  // ✅ Convert slope change (%) -> deflection degrees (atan(%/100))
+  const pctToDeg = (pct) => {
+    const n = toNum(pct);
+    if (n === null) return null;
+    const radians = Math.atan(n / 100);
+    return (radians * 180) / Math.PI;
   };
 
   useEffect(() => {
@@ -107,7 +118,6 @@ export default function RunAnalysis() {
 
       xx.push(xv);
       yy.push(yv);
-
       cd.push({ frame: f, pole: p, label: `${f}.${p}` });
     }
 
@@ -119,10 +129,6 @@ export default function RunAnalysis() {
       dropped: drop,
     };
   }, [frame, pole, x, y]);
-
-  function goBack() {
-    navigate("/parameters");
-  }
 
   function onPlotClick(e) {
     const pt = e?.points?.[0];
@@ -136,10 +142,10 @@ export default function RunAnalysis() {
     let trackerResults = null;
     if (gradingResults && gradingResults.piles) {
       const tid = parseInt(frameId);
-      const piles = gradingResults.piles.filter(p => Math.floor(p.pile_id) === tid);
+      const piles = gradingResults.piles.filter((p) => Math.floor(p.pile_id) === tid);
 
       if (piles.length > 0) {
-        const violations = gradingResults.violations.filter(v => Math.floor(v.pile_id) === tid);
+        const violations = (gradingResults.violations || []).filter((v) => Math.floor(v.pile_id) === tid);
 
         trackerResults = {
           tracker_id: tid,
@@ -148,7 +154,7 @@ export default function RunAnalysis() {
           violations: violations,
           total_cut: piles.reduce((sum, p) => sum + (p.cut_fill > 0 ? p.cut_fill : 0), 0),
           total_fill: piles.reduce((sum, p) => sum + (p.cut_fill < 0 ? Math.abs(p.cut_fill) : 0), 0),
-          constraints: gradingResults.constraints // Pass constraints for side view
+          constraints: gradingResults.constraints,
         };
       }
     }
@@ -188,7 +194,7 @@ export default function RunAnalysis() {
         const zv = toNum(zLS[i]);
 
         if (f && p && xv !== null && yv !== null && zv !== null) {
-          const pileId = parseFloat(`${f}.${p.padStart(2, '0')}`);
+          const pileId = parseFloat(`${f}.${p.padStart(2, "0")}`);
 
           piles.push({
             pile_id: pileId,
@@ -196,7 +202,7 @@ export default function RunAnalysis() {
             easting: xv,
             northing: yv,
             initial_elevation: zv,
-            flooding_allowance: 0.0
+            flooding_allowance: 0.0,
           });
         }
       }
@@ -206,6 +212,15 @@ export default function RunAnalysis() {
       }
 
       const params = JSON.parse(localStorage.getItem("pcl_parameters") || "{}");
+
+      // ✅ IMPORTANT:
+      // - tracker_edge_overhang must be sent (your backend expects edge_overhang)
+      // - XTR slope-change fields: UI is % but backend algo is degrees → convert here
+      const segDefDeg =
+        trackerType === "xtr" && params.maxSegmentSlopeChange ? pctToDeg(params.maxSegmentSlopeChange) : null;
+
+      const cumDefDeg =
+        trackerType === "xtr" && params.maxCumulativeSlopeChange ? pctToDeg(params.maxCumulativeSlopeChange) : null;
 
       const request = {
         tracker_type: trackerType,
@@ -217,15 +232,20 @@ export default function RunAnalysis() {
           max_incline: parseFloat(params.maxIncline),
           target_height_percantage: 0.5,
           max_angle_rotation: 0.0,
-          max_segment_deflection_deg: params.maxSegmentSlopeChange ? parseFloat(params.maxSegmentSlopeChange) : null,
-          max_cumulative_deflection_deg: params.maxCumulativeSlopeChange ? parseFloat(params.maxCumulativeSlopeChange) : null,
-        }
+
+          // ✅ this was missing before
+          tracker_edge_overhang: params.trackerEdgeOverhang ? parseFloat(params.trackerEdgeOverhang) : 0.0,
+
+          // ✅ send degrees to terrain-following algo
+          max_segment_deflection_deg: segDefDeg,
+          max_cumulative_deflection_deg: cumDefDeg,
+        },
       };
 
       const res = await fetch("http://127.0.0.1:8000/api/grade-project", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       });
 
       if (!res.ok) {
@@ -235,7 +255,6 @@ export default function RunAnalysis() {
 
       const result = await res.json();
       setGradingResults(result);
-
     } catch (e) {
       setError(e.message || "Grading failed");
     } finally {
@@ -247,11 +266,19 @@ export default function RunAnalysis() {
     if (!gradingResults || !gradingResults.piles) return;
 
     const headers = [
-      "tracker_id", "pile_id", "pile_in_tracker", "northing", "easting",
-      "initial_elevation", "final_elevation", "change", "total_height", "total_revealed"
+      "tracker_id",
+      "pile_id",
+      "pile_in_tracker",
+      "northing",
+      "easting",
+      "initial_elevation",
+      "final_elevation",
+      "change",
+      "total_height",
+      "total_revealed",
     ];
 
-    const rows = gradingResults.piles.map(p => {
+    const rows = gradingResults.piles.map((p) => {
       const trackerId = Math.floor(p.pile_id);
       const change = p.final_elevation - p.initial_elevation;
       return [
@@ -264,7 +291,7 @@ export default function RunAnalysis() {
         p.final_elevation,
         change,
         p.total_height,
-        p.pile_revealed
+        p.pile_revealed,
       ].join(",");
     });
 
@@ -286,16 +313,14 @@ export default function RunAnalysis() {
 
     const statusMap = new Map();
 
-    // 1. Identify trackers with violations
     if (gradingResults.violations) {
-      gradingResults.violations.forEach(v => {
+      gradingResults.violations.forEach((v) => {
         const tid = Math.floor(v.pile_id);
         statusMap.set(tid, "violation");
       });
     }
 
-    // 2. Identify trackers that were graded
-    gradingResults.piles.forEach(p => {
+    gradingResults.piles.forEach((p) => {
       const tid = Math.floor(p.pile_id);
       if (statusMap.get(tid) === "violation") return;
 
@@ -314,15 +339,15 @@ export default function RunAnalysis() {
     if (!gradingResults) return { filteredGraded: [], filteredAll: [], totalAllCount: 0, pages: [] };
 
     const search = sidebarSearch.trim().toLowerCase();
-    const uniqueTrackers = Array.from(new Set(gradingResults.piles.map(p => Math.floor(p.pile_id)))).sort((a, b) => a - b);
+    const uniqueTrackers = Array.from(new Set(gradingResults.piles.map((p) => Math.floor(p.pile_id)))).sort(
+      (a, b) => a - b
+    );
 
-    // 1. Filter by search
-    const matchedTrackers = uniqueTrackers.filter(tid => {
+    const matchedTrackers = uniqueTrackers.filter((tid) => {
       return !search || tid.toString().includes(search);
     });
 
-    // 2. Separate Graded/Violations
-    const graded = matchedTrackers.filter(tid => {
+    const graded = matchedTrackers.filter((tid) => {
       const status = trackerStatusMap.get(tid);
       return status === "graded" || status === "violation";
     });
@@ -332,10 +357,8 @@ export default function RunAnalysis() {
     let pageList = [];
 
     if (search) {
-      // If searching, show all matches (up to a limit for performance)
       finalAll = matchedTrackers.slice(0, 200);
     } else {
-      // If not searching, use range-based pagination for the "All" list
       const numPages = Math.ceil(total / PAGE_SIZE);
       for (let i = 0; i < numPages; i++) {
         const start = i * PAGE_SIZE + 1;
@@ -351,15 +374,15 @@ export default function RunAnalysis() {
       filteredGraded: graded,
       filteredAll: finalAll,
       totalAllCount: total,
-      pages: pageList
+      pages: pageList,
     };
   }, [gradingResults, trackerStatusMap, sidebarSearch, okPage]);
 
   const handleTrackerClick = (tid) => {
-    const piles = gradingResults.piles.filter(p => Math.floor(p.pile_id) === tid);
+    const piles = gradingResults.piles.filter((p) => Math.floor(p.pile_id) === tid);
     if (piles.length === 0) return;
 
-    const violations = gradingResults.violations.filter(v => Math.floor(v.pile_id) === tid);
+    const violations = (gradingResults.violations || []).filter((v) => Math.floor(v.pile_id) === tid);
 
     const trackerResults = {
       tracker_id: tid,
@@ -368,7 +391,7 @@ export default function RunAnalysis() {
       violations: violations,
       total_cut: piles.reduce((sum, p) => sum + (p.cut_fill > 0 ? p.cut_fill : 0), 0),
       total_fill: piles.reduce((sum, p) => sum + (p.cut_fill < 0 ? Math.abs(p.cut_fill) : 0), 0),
-      constraints: gradingResults.constraints
+      constraints: gradingResults.constraints,
     };
 
     navigate(`/frame/${encodeURIComponent(tid)}`, {
@@ -385,258 +408,305 @@ export default function RunAnalysis() {
 
   return (
     <div className="ra-shell">
-      <header className="ra-topbar">
-        <div className="ra-left">
-          <Link to="/parameters" className="ra-link">
-            ← Back
-          </Link>
+      <div className="ra-bg" aria-hidden="true">
+        <img src={backgroundImage} alt="" className="ra-bgImg" />
+        <div className="ra-bgOverlay" />
+        <div className="ra-gridOverlay" />
+      </div>
 
-          <div className="ra-titlewrap">
-            <h1 className="ra-title">Run Analysis</h1>
-            <div className="ra-subtitle">
-              Scatter plot (X vs Y). Hover shows <strong>Frame.Pole</strong>. Click a point to open that frame.
+      <header className="ra-header">
+        <div className="ra-headerInner">
+          <div className="ra-brand">
+            <img src={pclLogo} alt="PCL Logo" className="ra-logo" />
+            <div className="ra-brandText">
+              <div className="ra-brandTitle">Earthworks Analysis Tool</div>
+              <div className="ra-brandSub">Run → Visualise → Frame profile</div>
             </div>
           </div>
-        </div>
 
-        <div className="ra-meta">
-          <div className="ra-chip">
-            <div className="ra-chip-label">File</div>
-            <div className="ra-chip-value">{fileName || "—"}</div>
-          </div>
-          <div className="ra-chip">
-            <div className="ra-chip-label">Sheet</div>
-            <div className="ra-chip-value">{sheetName || "—"}</div>
-          </div>
-          <div className="ra-chip">
-            <div className="ra-chip-label">Tracker</div>
-            <div className="ra-chip-value">{trackerType.toUpperCase()}</div>
-          </div>
-          <div className="ra-chip">
-            <div className="ra-chip-label">Points</div>
-            <div className="ra-chip-value">{pointCount.toLocaleString()}</div>
+          <div className="ra-headerActions">
+            <Link to="/parameters" className="ra-navLink">
+              ← Back
+            </Link>
+
+            <button
+              className="ra-btn ra-btnPrimary"
+              onClick={runGrading}
+              disabled={gradingLoading}
+              title="Run grading using backend constraints"
+            >
+              {gradingLoading ? "Running Grading..." : "Run Grading"}
+            </button>
+
+            {gradingResults && (
+              <button className="ra-btn ra-btnSuccess" onClick={downloadCSV}>
+                Download CSV
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {error && <div className="ra-error">{error}</div>}
-
-      {!error && (
-        <div className={`ra-main-container ${sidebarOpen ? 'sidebar-open' : ''}`}>
-          {gradingResults && (
-            <button
-              className="ra-sidebar-toggle"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              title={sidebarOpen ? "Close Sidebar" : "Open Tracker List"}
-            >
-              {sidebarOpen ? "«" : "»"}
-            </button>
-          )}
-
-          {sidebarOpen && gradingResults && (
-            <aside className="ra-sidebar">
-              <div className="ra-sidebar-search-wrap">
-                <input
-                  type="text"
-                  className="ra-sidebar-search"
-                  placeholder="Search Tracker ID..."
-                  value={sidebarSearch}
-                  onChange={(e) => setSidebarSearch(e.target.value)}
-                />
-                {sidebarSearch && (
-                  <button className="ra-search-clear" onClick={() => setSidebarSearch("")}>×</button>
-                )}
-              </div>
-
-              <div className="ra-sidebar-section">
-                <h3 className="ra-sidebar-title">Needs Grading / Violations ({filteredGraded.length})</h3>
-                <div className="ra-sidebar-list">
-                  {filteredGraded.map(tid => {
-                    const status = trackerStatusMap.get(tid);
-                    const statusClass = status === "violation" ? "violation" : "graded";
-                    return (
-                      <button
-                        key={tid}
-                        className={`ra-sidebar-item ${statusClass}`}
-                        onClick={() => handleTrackerClick(tid)}
-                      >
-                        Tracker {tid}
-                      </button>
-                    );
-                  })}
-                  {filteredGraded.length === 0 && <div className="ra-no-results">No matches</div>}
-                </div>
-              </div>
-
-              <div className="ra-sidebar-section">
-                <h3 className="ra-sidebar-title">
-                  All Trackers ({totalAllCount})
-                </h3>
-
-                {!sidebarSearch && pages.length > 1 && (
-                  <div className="ra-sidebar-pagination">
-                    <select
-                      className="ra-sidebar-select"
-                      value={okPage}
-                      onChange={(e) => setOkPage(parseInt(e.target.value))}
-                    >
-                      {pages.map(p => (
-                        <option key={p.index} value={p.index}>Range: {p.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="ra-sidebar-list">
-                  {filteredAll.map(tid => {
-                    const status = trackerStatusMap.get(tid);
-                    const statusClass = status === "violation" ? "violation" : status === "graded" ? "graded" : "ok";
-                    return (
-                      <button
-                        key={tid}
-                        className={`ra-sidebar-item ${statusClass}`}
-                        onClick={() => handleTrackerClick(tid)}
-                      >
-                        Tracker {tid}
-                      </button>
-                    );
-                  })}
-                  {filteredAll.length === 0 && <div className="ra-no-results">No matches</div>}
-                </div>
-                {!sidebarSearch && pages.length > 1 && (
-                  <div className="ra-sidebar-tip">Select a range above to see more</div>
-                )}
-              </div>
-            </aside>
-          )}
-
-          <div className="ra-plotwrap">
-            <Plot
-              data={[
-                {
-                  type: "scattergl",
-                  mode: "markers",
-                  x: xNum,
-                  y: yNum,
-                  customdata: customData,
-                  marker: {
-                    size: 4,
-                    color: gradingResults ? xNum.map((_, i) => {
-                      const cd = customData[i];
-                      const tid = parseInt(cd.frame);
-                      const status = trackerStatusMap.get(tid);
-
-                      if (status === "violation") return "#FF4D4D"; // Red
-                      if (status === "graded") return "#FF9800";    // Orange
-                      return "#00C853";                             // Green
-                    }) : "#FFD400",
-                    opacity: 0.85,
-                  },
-                  hovertemplate: "%{customdata.label}<extra></extra>",
-                  name: "Frame Locations",
-                },
-              ]}
-              layout={{
-                autosize: true,
-                margin: { l: 60, r: 20, t: 30, b: 55 },
-                paper_bgcolor: "#ffffff",
-                plot_bgcolor: "#ffffff",
-                xaxis: {
-                  title: "X",
-                  zeroline: false,
-                  showgrid: true,
-                  gridcolor: "#eef2f7",
-                },
-                yaxis: {
-                  title: "Y",
-                  zeroline: false,
-                  showgrid: true,
-                  gridcolor: "#eef2f7",
-                },
-                showlegend: false,
-                hovermode: "closest",
-                uirevision: "true", // ✅ Maintain zoom/pan after grading
-              }}
-              config={{
-                responsive: true,
-                displaylogo: false,
-                scrollZoom: true,
-                modeBarButtonsToRemove: ["lasso2d"],
-              }}
-              style={{ width: "100%", height: "100%" }}
-              onClick={onPlotClick}
-            />
+      <div className="ra-main">
+        <div className="ra-metaRow">
+          <div className="ra-chip">
+            <div className="ra-chipLabel">File</div>
+            <div className="ra-chipValue">{fileName || "—"}</div>
           </div>
+          <div className="ra-chip">
+            <div className="ra-chipLabel">Sheet</div>
+            <div className="ra-chipValue">{sheetName || "—"}</div>
+          </div>
+          <div className="ra-chip">
+            <div className="ra-chipLabel">Tracker</div>
+            <div className="ra-chipValue">{trackerType.toUpperCase()}</div>
+          </div>
+          <div className="ra-chip">
+            <div className="ra-chipLabel">Points</div>
+            <div className="ra-chipValue">{pointCount.toLocaleString()}</div>
+          </div>
+          <div className="ra-chip">
+            <div className="ra-chipLabel">Dropped</div>
+            <div className="ra-chipValue">{dropped.toLocaleString()}</div>
+          </div>
+        </div>
 
-          {gradingResults && (
-            <div className={`ra-plot-legend ${legendOpen ? 'open' : 'closed'}`}>
+        {error && <div className="ra-alert ra-alertError">{error}</div>}
+
+        {!error && (
+          <div className={`ra-workspace ${sidebarOpen ? "sidebar-open" : ""}`}>
+            {gradingResults && (
               <button
-                className="ra-legend-toggle"
-                onClick={() => setLegendOpen(!legendOpen)}
+                className="ra-sidebarToggle"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                title={sidebarOpen ? "Close Tracker List" : "Open Tracker List"}
               >
-                {legendOpen ? "Hide Legend" : "Show Legend"}
+                {sidebarOpen ? "«" : "»"}
               </button>
-              {legendOpen && (
-                <div className="ra-legend-content">
-                  <div className="ra-legend-item">
-                    <span className="ra-legend-dot red"></span>
-                    <div className="ra-legend-text">
-                      <div className="ra-legend-label">Violation</div>
-                      <div className="ra-legend-desc">Still fails constraints after grading</div>
-                    </div>
+            )}
+
+            {sidebarOpen && gradingResults && (
+              <aside className="ra-sidebar">
+                <div className="ra-sidebarHead">
+                  <div className="ra-sidebarTitle">Trackers</div>
+                  <div className="ra-sidebarSub">Search or pick a tracker to open its frame profile.</div>
+                </div>
+
+                <div className="ra-sidebarSearchWrap">
+                  <input
+                    type="text"
+                    className="ra-sidebarSearch"
+                    placeholder="Search Tracker ID..."
+                    value={sidebarSearch}
+                    onChange={(e) => setSidebarSearch(e.target.value)}
+                  />
+                  {sidebarSearch && (
+                    <button className="ra-searchClear" onClick={() => setSidebarSearch("")} title="Clear">
+                      ×
+                    </button>
+                  )}
+                </div>
+
+                <div className="ra-sidebarSection">
+                  <div className="ra-sectionHead">
+                    <div className="ra-sectionTitle">Needs Grading / Violations</div>
+                    <div className="ra-sectionCount">{filteredGraded.length}</div>
                   </div>
-                  <div className="ra-legend-item">
-                    <span className="ra-legend-dot orange"></span>
-                    <div className="ra-legend-text">
-                      <div className="ra-legend-label">Graded</div>
-                      <div className="ra-legend-desc">Fixed via ground adjustment (Cut/Fill)</div>
-                    </div>
-                  </div>
-                  <div className="ra-legend-item">
-                    <span className="ra-legend-dot green"></span>
-                    <div className="ra-legend-text">
-                      <div className="ra-legend-label">OK</div>
-                      <div className="ra-legend-desc">Valid without ground adjustment</div>
-                    </div>
+
+                  <div className="ra-sidebarList">
+                    {filteredGraded.map((tid) => {
+                      const status = trackerStatusMap.get(tid);
+                      const statusClass = status === "violation" ? "violation" : "graded";
+                      return (
+                        <button
+                          key={tid}
+                          className={`ra-sidebarItem ${statusClass}`}
+                          onClick={() => handleTrackerClick(tid)}
+                        >
+                          <span className="ra-itemDot" />
+                          Tracker {tid}
+                        </button>
+                      );
+                    })}
+                    {filteredGraded.length === 0 && <div className="ra-noResults">No matches</div>}
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
-      {!error && (
-        <footer className="ra-footer">
-          Hover shows Frame.Pole. Dropped non-numeric rows:{" "}
-          <strong>{dropped.toLocaleString()}</strong>.
-        </footer>
-      )}
+                <div className="ra-sidebarSection">
+                  <div className="ra-sectionHead">
+                    <div className="ra-sectionTitle">All Trackers</div>
+                    <div className="ra-sectionCount">{totalAllCount}</div>
+                  </div>
 
-      <div className="ra-actions">
-        <button className="ra-btn" onClick={goBack}>
-          ← Back to Parameters
-        </button>
-        <button
-          className="ra-btn ra-btn-primary"
-          onClick={runGrading}
-          disabled={gradingLoading}
-        >
-          {gradingLoading ? "Running Grading..." : "Run Grading"}
-        </button>
-        {gradingResults && (
-          <>
-            <button className="ra-btn ra-btn-success" onClick={downloadCSV}>
-              Download CSV
-            </button>
-            <button className="ra-btn" onClick={() => navigate("/uploads")}>
-              Back to Upload
-            </button>
-          </>
+                  {!sidebarSearch && pages.length > 1 && (
+                    <div className="ra-sidebarPagination">
+                      <select
+                        className="ra-sidebarSelect"
+                        value={okPage}
+                        onChange={(e) => setOkPage(parseInt(e.target.value))}
+                      >
+                        {pages.map((p) => (
+                          <option key={p.index} value={p.index}>
+                            Range: {p.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="ra-sidebarList">
+                    {filteredAll.map((tid) => {
+                      const status = trackerStatusMap.get(tid);
+                      const statusClass =
+                        status === "violation" ? "violation" : status === "graded" ? "graded" : "ok";
+                      return (
+                        <button
+                          key={tid}
+                          className={`ra-sidebarItem ${statusClass}`}
+                          onClick={() => handleTrackerClick(tid)}
+                        >
+                          <span className="ra-itemDot" />
+                          Tracker {tid}
+                        </button>
+                      );
+                    })}
+                    {filteredAll.length === 0 && <div className="ra-noResults">No matches</div>}
+                  </div>
+
+                  {!sidebarSearch && pages.length > 1 && (
+                    <div className="ra-sidebarTip">Select a range above to see more</div>
+                  )}
+                </div>
+              </aside>
+            )}
+
+            <section className="ra-plotCard">
+              <div className="ra-plotHead">
+                <div>
+                  <div className="ra-plotTitle">Site Layout (Easting (X) vs Northing (Y))</div>
+                  <div className="ra-plotSub">
+                    Hover shows <strong>Frame.Pole</strong>. Click a point to open that frame.
+                  </div>
+                </div>
+
+                {gradingResults && (
+                  <div className="ra-plotBadges">
+                    <span className="ra-miniBadge danger">Violation</span>
+                    <span className="ra-miniBadge warn">Graded</span>
+                    <span className="ra-miniBadge ok">OK</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="ra-plotWrap">
+                <Plot
+                  data={[
+                    {
+                      type: "scattergl",
+                      mode: "markers",
+                      x: xNum,
+                      y: yNum,
+                      customdata: customData,
+                      marker: {
+                        size: 4,
+                        color: gradingResults
+                          ? xNum.map((_, i) => {
+                              const cd = customData[i];
+                              const tid = parseInt(cd.frame);
+                              const status = trackerStatusMap.get(tid);
+
+                              if (status === "violation") return "#FF4D4D";
+                              if (status === "graded") return "#FF9800";
+                              return "#00C853";
+                            })
+                          : "#FFD400",
+                        opacity: 0.85,
+                      },
+                      hovertemplate: "%{customdata.label}<extra></extra>",
+                      name: "Frame Locations",
+                    },
+                  ]}
+                  layout={{
+                    autosize: true,
+                    margin: { l: 66, r: 24, t: 30, b: 58 },
+                    paper_bgcolor: "rgba(0,0,0,0)",
+                    plot_bgcolor: "rgba(0,0,0,0)",
+                    xaxis: {
+                      title: "X",
+                      zeroline: false,
+                      showgrid: true,
+                      gridcolor: "rgb(18, 17, 17)",
+                      tickformat: ",.0f",
+                      separatethousands: true,
+                    },
+                    yaxis: {
+                      title: "Y",
+                      zeroline: false,
+                      showgrid: true,
+                      gridcolor: "rgb(0, 0, 0)",
+                      tickformat: ",.0f",
+                      separatethousands: true,
+                    },
+                    showlegend: false,
+                    hovermode: "closest",
+                    uirevision: "true",
+                  }}
+                  config={{
+                    responsive: true,
+                    displaylogo: false,
+                    scrollZoom: true,
+                    modeBarButtonsToRemove: ["lasso2d"],
+                  }}
+                  style={{ width: "100%", height: "100%" }}
+                  onClick={onPlotClick}
+                />
+              </div>
+            </section>
+
+            {gradingResults && (
+              <div className={`ra-legend ${legendOpen ? "open" : "closed"}`}>
+                <button className="ra-legendToggle" onClick={() => setLegendOpen(!legendOpen)}>
+                  {legendOpen ? "Hide Legend" : "Show Legend"}
+                </button>
+
+                {legendOpen && (
+                  <div className="ra-legendContent">
+                    <div className="ra-legendItem">
+                      <span className="ra-legendDot red" />
+                      <div className="ra-legendText">
+                        <div className="ra-legendLabel">Violation</div>
+                        <div className="ra-legendDesc">Still fails constraints after grading</div>
+                      </div>
+                    </div>
+
+                    <div className="ra-legendItem">
+                      <span className="ra-legendDot orange" />
+                      <div className="ra-legendText">
+                        <div className="ra-legendLabel">Graded</div>
+                        <div className="ra-legendDesc">Fixed via ground adjustment (Cut/Fill)</div>
+                      </div>
+                    </div>
+
+                    <div className="ra-legendItem">
+                      <span className="ra-legendDot green" />
+                      <div className="ra-legendText">
+                        <div className="ra-legendLabel">OK</div>
+                        <div className="ra-legendDesc">Valid without ground adjustment</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
-
+      {!error && (
+        <footer className="ra-footer">
+          Hover shows Frame.Pole. Dropped non-numeric rows: <strong>{dropped.toLocaleString()}</strong>.
+        </footer>
+      )}
     </div>
   );
 }

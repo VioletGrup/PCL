@@ -11,18 +11,30 @@ if TYPE_CHECKING:
 @dataclass
 class BasePile:
     """
-
+    A standard pile within a tracker.
 
     Attributes
     ----------
+    northing: float
+        Y coordinate of pile
+    easting: float
+        X coordinate of pile
+    initial_elevation: float
+        Z coordinate of pile as when first imported from BOM
+    pile_in_tracker: int
+        Id of this pile within its tracker.
+    pile_id: float
+        Unique id for pile in a project. Named as `tracker_id`.`pile_in_tracker`
+    flooding_allowance: float
+        Flooding allowance required at this coordinate that that the solar panel must clear when at the maxiumum angle
 
     """
 
     northing: float
     easting: float
     initial_elevation: float
-    pile_id: float
     pile_in_tracker: int
+    pile_id: float
     flooding_allowance: float
 
     height: float = field(
