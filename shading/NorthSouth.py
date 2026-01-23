@@ -17,3 +17,7 @@ class NorthSouth:
         )
         max_module_height_diff = min_gap_btwn_modules / ns_shadow_length
         return max_module_height_diff
+
+        """
+        run before grading 
+        """

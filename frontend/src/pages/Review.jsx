@@ -35,6 +35,31 @@ export default function Review() {
 
   const [isApplying, setIsApplying] = useState(false);
 
+  // ✅ NEW: status overlay control
+  const [statusOverlay, setStatusOverlay] = useState({
+    open: false,
+    message: "",
+    variant: "info", // "info" | "success"
+  });
+
+  const showStatusOverlay = (message, variant = "info") => {
+    setStatus(message);
+    setStatusOverlay({ open: true, message, variant });
+  };
+
+  const hideStatusOverlay = () => {
+    setStatusOverlay({ open: false, message: "", variant: "info" });
+  };
+
+  const showAppliedOverlay = () => {
+    // show centered "Applied." briefly, then auto-hide and clear status
+    showStatusOverlay("Applied.", "success");
+    setTimeout(() => {
+      hideStatusOverlay();
+      setStatus("");
+    }, 1200);
+  };
+
   // ---------- helpers ----------
   const norm = (v) =>
     String(v ?? "")
@@ -223,6 +248,7 @@ export default function Review() {
   useEffect(() => {
     setError("");
     setStatus("");
+    hideStatusOverlay();
 
     // 1. restore mapping letters if saved (always useful)
     try {
@@ -241,7 +267,7 @@ export default function Review() {
     if (bomFile) {
       (async () => {
         try {
-          setStatus("Loading sheet…");
+          showStatusOverlay("Loading sheet…", "info");
 
           const idx = {
             frame: letterToColIndex(frameCol) ?? 0, // A
@@ -286,7 +312,11 @@ export default function Review() {
               trackerType: "flat",
             })
           );
+
+          // close overlay after successful load
+          hideStatusOverlay();
         } catch (e) {
+          hideStatusOverlay();
           setStatus("");
           setError(e?.message || "Failed to read BOM file.");
         }
@@ -368,10 +398,14 @@ export default function Review() {
 
       const startIndex = Number(localStorage.getItem("pcl_data_start_index")) || 0;
 
-      setStatus("Applying mapping…");
+      showStatusOverlay("Applying mapping…", "info");
 
       const { matchedSheetName, outFrame, outPole, outX, outY, outZ } =
-        await extractColumnsNoHeader(bomFile, { frame: f, pole: p, x: xc, y: yc, z: zc }, startIndex);
+        await extractColumnsNoHeader(
+          bomFile,
+          { frame: f, pole: p, x: xc, y: yc, z: zc },
+          startIndex
+        );
 
       setSheetName(matchedSheetName);
 
@@ -403,13 +437,19 @@ export default function Review() {
         })
       );
 
+      // close overlay + show applied in center
+      hideStatusOverlay();
+
       if (!(ok1 && ok2 && ok3 && ok4 && okF)) {
         setStatus("Applied. Note: browser storage is full, so refresh may require re-upload.");
+        // still show the center "Applied." briefly
+        showAppliedOverlay();
       } else {
         setStatus("Applied.");
-        setTimeout(() => setStatus(""), 1200);
+        showAppliedOverlay();
       }
     } catch (e) {
+      hideStatusOverlay();
       setStatus("");
       setError(e?.message || "Failed to apply mapping.");
     } finally {
@@ -421,6 +461,20 @@ export default function Review() {
 
   return (
     <div className="rv-shell">
+      {/* ✅ CENTER STATUS OVERLAY */}
+      {statusOverlay.open && (
+        <div className="rv-statusOverlay" role="status" aria-live="polite">
+          <div
+            className={`rv-statusCard ${
+              statusOverlay.variant === "success" ? "rv-statusCardSuccess" : ""
+            }`}
+          >
+            <div className="rv-statusSpinner" aria-hidden="true" />
+            <div className="rv-statusText">{statusOverlay.message}</div>
+          </div>
+        </div>
+      )}
+
       {/* Background */}
       <div className="rv-bg" aria-hidden="true">
         <img src={backgroundImage} alt="" className="rv-bgImg" />

@@ -643,3 +643,93 @@ body {
 }
 
 
+/* Add to Uploads.css (near the bottom) */
+
+/* Smooth centered toast overlay */
+.upl-toastOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+
+  /* smooth backdrop */
+  background: rgba(0, 0, 0, 0.0);
+  backdrop-filter: blur(0px);
+  opacity: 0;
+  transition: opacity 220ms ease, background 220ms ease, backdrop-filter 220ms ease;
+}
+
+.upl-toastOverlay.is-visible {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(4px);
+}
+
+.upl-toastCard {
+  width: min(560px, 92vw);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+
+  /* aesthetic glass */
+  background: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+
+  /* smooth pop */
+  opacity: 0;
+  transform: translateY(14px) scale(0.98);
+  transition: opacity 220ms ease, transform 220ms cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.upl-toastCard.is-visible {
+  opacity: 1;
+  transform: translateY(0px) scale(1);
+}
+
+.upl-toastIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  line-height: 1;
+  user-select: none;
+
+  background: rgba(15, 23, 42, 0.08);
+  color: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.upl-toastCard.is-success .upl-toastIcon {
+  background: rgba(11, 91, 63, 0.10);
+  color: rgba(11, 91, 63, 0.95);
+  border-color: rgba(11, 91, 63, 0.18);
+}
+
+.upl-toastCard.is-error .upl-toastIcon {
+  background: rgba(220, 38, 38, 0.10);
+  color: rgba(220, 38, 38, 0.95);
+  border-color: rgba(220, 38, 38, 0.18);
+}
+
+.upl-toastText {
+  font-weight: 850;
+  color: #0f172a;
+  letter-spacing: 0.15px;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .upl-toastOverlay,
+  .upl-toastCard {
+    transition: none !important;
+  }
+}
+
+

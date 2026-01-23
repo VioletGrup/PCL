@@ -47,6 +47,14 @@ export default function RunAnalysis() {
     return s;
   };
 
+  // ✅ Convert slope change (%) -> deflection degrees (atan(%/100))
+  const pctToDeg = (pct) => {
+    const n = toNum(pct);
+    if (n === null) return null;
+    const radians = Math.atan(n / 100);
+    return (radians * 180) / Math.PI;
+  };
+
   useEffect(() => {
     setError("");
 
@@ -122,10 +130,6 @@ export default function RunAnalysis() {
     };
   }, [frame, pole, x, y]);
 
-  function goBack() {
-    navigate("/parameters");
-  }
-
   function onPlotClick(e) {
     const pt = e?.points?.[0];
     if (!pt) return;
@@ -141,7 +145,7 @@ export default function RunAnalysis() {
       const piles = gradingResults.piles.filter((p) => Math.floor(p.pile_id) === tid);
 
       if (piles.length > 0) {
-        const violations = gradingResults.violations.filter((v) => Math.floor(v.pile_id) === tid);
+        const violations = (gradingResults.violations || []).filter((v) => Math.floor(v.pile_id) === tid);
 
         trackerResults = {
           tracker_id: tid,
@@ -150,7 +154,7 @@ export default function RunAnalysis() {
           violations: violations,
           total_cut: piles.reduce((sum, p) => sum + (p.cut_fill > 0 ? p.cut_fill : 0), 0),
           total_fill: piles.reduce((sum, p) => sum + (p.cut_fill < 0 ? Math.abs(p.cut_fill) : 0), 0),
-          constraints: gradingResults.constraints, // Pass constraints for side view
+          constraints: gradingResults.constraints,
         };
       }
     }
@@ -209,6 +213,15 @@ export default function RunAnalysis() {
 
       const params = JSON.parse(localStorage.getItem("pcl_parameters") || "{}");
 
+      // ✅ IMPORTANT:
+      // - tracker_edge_overhang must be sent (your backend expects edge_overhang)
+      // - XTR slope-change fields: UI is % but backend algo is degrees → convert here
+      const segDefDeg =
+        trackerType === "xtr" && params.maxSegmentSlopeChange ? pctToDeg(params.maxSegmentSlopeChange) : null;
+
+      const cumDefDeg =
+        trackerType === "xtr" && params.maxCumulativeSlopeChange ? pctToDeg(params.maxCumulativeSlopeChange) : null;
+
       const request = {
         tracker_type: trackerType,
         piles: piles,
@@ -219,8 +232,13 @@ export default function RunAnalysis() {
           max_incline: parseFloat(params.maxIncline),
           target_height_percantage: 0.5,
           max_angle_rotation: 0.0,
-          max_segment_deflection_deg: params.maxSegmentSlopeChange ? parseFloat(params.maxSegmentSlopeChange) : null,
-          max_cumulative_deflection_deg: params.maxCumulativeSlopeChange ? parseFloat(params.maxCumulativeSlopeChange) : null,
+
+          // ✅ this was missing before
+          tracker_edge_overhang: params.trackerEdgeOverhang ? parseFloat(params.trackerEdgeOverhang) : 0.0,
+
+          // ✅ send degrees to terrain-following algo
+          max_segment_deflection_deg: segDefDeg,
+          max_cumulative_deflection_deg: cumDefDeg,
         },
       };
 
@@ -295,7 +313,6 @@ export default function RunAnalysis() {
 
     const statusMap = new Map();
 
-    // 1. Identify trackers with violations
     if (gradingResults.violations) {
       gradingResults.violations.forEach((v) => {
         const tid = Math.floor(v.pile_id);
@@ -303,7 +320,6 @@ export default function RunAnalysis() {
       });
     }
 
-    // 2. Identify trackers that were graded
     gradingResults.piles.forEach((p) => {
       const tid = Math.floor(p.pile_id);
       if (statusMap.get(tid) === "violation") return;
@@ -327,12 +343,10 @@ export default function RunAnalysis() {
       (a, b) => a - b
     );
 
-    // 1. Filter by search
     const matchedTrackers = uniqueTrackers.filter((tid) => {
       return !search || tid.toString().includes(search);
     });
 
-    // 2. Separate Graded/Violations
     const graded = matchedTrackers.filter((tid) => {
       const status = trackerStatusMap.get(tid);
       return status === "graded" || status === "violation";
@@ -343,10 +357,8 @@ export default function RunAnalysis() {
     let pageList = [];
 
     if (search) {
-      // If searching, show all matches (up to a limit for performance)
       finalAll = matchedTrackers.slice(0, 200);
     } else {
-      // If not searching, use range-based pagination for the "All" list
       const numPages = Math.ceil(total / PAGE_SIZE);
       for (let i = 0; i < numPages; i++) {
         const start = i * PAGE_SIZE + 1;
@@ -370,7 +382,7 @@ export default function RunAnalysis() {
     const piles = gradingResults.piles.filter((p) => Math.floor(p.pile_id) === tid);
     if (piles.length === 0) return;
 
-    const violations = gradingResults.violations.filter((v) => Math.floor(v.pile_id) === tid);
+    const violations = (gradingResults.violations || []).filter((v) => Math.floor(v.pile_id) === tid);
 
     const trackerResults = {
       tracker_id: tid,
@@ -396,14 +408,12 @@ export default function RunAnalysis() {
 
   return (
     <div className="ra-shell">
-      {/* Background */}
       <div className="ra-bg" aria-hidden="true">
         <img src={backgroundImage} alt="" className="ra-bgImg" />
         <div className="ra-bgOverlay" />
         <div className="ra-gridOverlay" />
       </div>
 
-      {/* Header */}
       <header className="ra-header">
         <div className="ra-headerInner">
           <div className="ra-brand">
@@ -437,9 +447,7 @@ export default function RunAnalysis() {
         </div>
       </header>
 
-      {/* Main */}
       <div className="ra-main">
-        {/* Meta row */}
         <div className="ra-metaRow">
           <div className="ra-chip">
             <div className="ra-chipLabel">File</div>
@@ -467,7 +475,6 @@ export default function RunAnalysis() {
 
         {!error && (
           <div className={`ra-workspace ${sidebarOpen ? "sidebar-open" : ""}`}>
-            {/* Sidebar toggle */}
             {gradingResults && (
               <button
                 className="ra-sidebarToggle"
@@ -478,7 +485,6 @@ export default function RunAnalysis() {
               </button>
             )}
 
-            {/* Sidebar */}
             {sidebarOpen && gradingResults && (
               <aside className="ra-sidebar">
                 <div className="ra-sidebarHead">
@@ -574,7 +580,6 @@ export default function RunAnalysis() {
               </aside>
             )}
 
-            {/* Plot card */}
             <section className="ra-plotCard">
               <div className="ra-plotHead">
                 <div>
@@ -610,9 +615,9 @@ export default function RunAnalysis() {
                               const tid = parseInt(cd.frame);
                               const status = trackerStatusMap.get(tid);
 
-                              if (status === "violation") return "#FF4D4D"; // Red
-                              if (status === "graded") return "#FF9800"; // Orange
-                              return "#00C853"; // Green
+                              if (status === "violation") return "#FF4D4D";
+                              if (status === "graded") return "#FF9800";
+                              return "#00C853";
                             })
                           : "#FFD400",
                         opacity: 0.85,
@@ -624,18 +629,13 @@ export default function RunAnalysis() {
                   layout={{
                     autosize: true,
                     margin: { l: 66, r: 24, t: 30, b: 58 },
-
-                    // Transparent to show glass card
                     paper_bgcolor: "rgba(0,0,0,0)",
                     plot_bgcolor: "rgba(0,0,0,0)",
-
                     xaxis: {
                       title: "X",
                       zeroline: false,
                       showgrid: true,
                       gridcolor: "rgb(18, 17, 17)",
-
-                      // ✅ no abbreviations like k/M
                       tickformat: ",.0f",
                       separatethousands: true,
                     },
@@ -644,8 +644,6 @@ export default function RunAnalysis() {
                       zeroline: false,
                       showgrid: true,
                       gridcolor: "rgb(0, 0, 0)",
-
-                      // ✅ no abbreviations like k/M
                       tickformat: ",.0f",
                       separatethousands: true,
                     },
@@ -665,7 +663,6 @@ export default function RunAnalysis() {
               </div>
             </section>
 
-            {/* Floating Legend (keep your behaviour) */}
             {gradingResults && (
               <div className={`ra-legend ${legendOpen ? "open" : "closed"}`}>
                 <button className="ra-legendToggle" onClick={() => setLegendOpen(!legendOpen)}>
@@ -705,7 +702,6 @@ export default function RunAnalysis() {
         )}
       </div>
 
-      {/* Footer */}
       {!error && (
         <footer className="ra-footer">
           Hover shows Frame.Pole. Dropped non-numeric rows: <strong>{dropped.toLocaleString()}</strong>.
