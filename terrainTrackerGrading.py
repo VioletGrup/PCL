@@ -315,7 +315,9 @@ def slope_correction(
     if not tracker.segments:
         tracker.create_segments()
 
-    for _ in range(3):  # iterate slope correction twice
+    # for pile in tracker.piles:
+    #     print(pile.pile_id, pile.height)
+    for _ in range(3):  # iterate slope correction thrice
         # calculate slope delta: the difference between the incoming and outgoing segment slopes
         # for all piles
         for pile in tracker.piles:
@@ -325,6 +327,7 @@ def slope_correction(
                 incoming_segment = tracker.get_segment_by_id(pile.get_incoming_segment_id())
                 outgoing_segment = tracker.get_segment_by_id(pile.get_outgoing_segment_id(tracker))
                 slope_delta = incoming_segment.slope() - outgoing_segment.slope()
+                # print(pile.pile_id, slope_delta)
             length = abs(incoming_segment.length())
             if slope_delta > project.max_strict_segment_slope_change:
                 # upwards slope is steeper than allowed, lower the pile
@@ -335,6 +338,9 @@ def slope_correction(
             else:
                 correction = 0.0
             pile.height -= correction
+
+    # for pile in tracker.piles:
+    #     print(pile.pile_id, pile.height)
     heights_after_correction = []
     for pile in tracker.piles:
         heights_after_correction.append(pile.height)
