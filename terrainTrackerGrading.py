@@ -3,12 +3,11 @@
 
 from typing import Dict
 
-from Project import Project
 from flatTrackerGrading import sliding_line
+from Project import Project
 from ProjectConstraints import ProjectConstraints
 from TerrainFollowingPile import TerrainFollowingPile
 from TerrainFollowingTracker import TerrainFollowingTracker
-from testing_compare_tf import compare_results
 from testing_get_data_tf import load_project_from_excel, to_excel
 
 
@@ -462,12 +461,6 @@ def main(project: Project) -> None:
             pile.set_final_elevation(pile.current_elevation)
             pile.set_total_height(pile.height)
             pile.set_total_revealed()
-
-        #   PRINT FOR TESTING
-        # for pile in tracker.piles:
-        #     print(
-        #         f"{pile.pile_id} IZ: {pile.initial_elevation} FZ: {pile.final_elevation} change: {pile.final_elevation - pile.initial_elevation} height: {pile.total_height}"
-        #     )
 
 
 if __name__ == "__main__":
