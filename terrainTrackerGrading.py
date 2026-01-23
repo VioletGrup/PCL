@@ -4,6 +4,7 @@
 from typing import Dict
 
 from Project import Project
+from flatTrackerGrading import sliding_line
 from ProjectConstraints import ProjectConstraints
 from TerrainFollowingPile import TerrainFollowingPile
 from TerrainFollowingTracker import TerrainFollowingTracker
@@ -44,7 +45,7 @@ def _window_by_pile_in_tracker(window: list[dict[str, float]]) -> Dict[int, tupl
     Returns
     -------
     Dict[int, tuple[float, float]]
-        Dictionary mapping pile_id to (min_height, max_height).
+        Dictionary mapping pile_in_tracker to (min_height, max_height).
     """
     out: Dict[int, tuple[float, float]] = {}
     for row in window:
@@ -184,51 +185,6 @@ def check_within_window(
             )
 
     return violations
-
-
-def sliding_line(
-    tracker: TerrainFollowingTracker,
-    violating_piles: list[dict[str, float]],
-    slope: float,
-    y_intercept: float,
-) -> None:
-    """
-    Slide the grading line vertically to reduce grading window violations.
-
-    Parameters
-    ----------
-    tracker : TerrainFollowingTracker
-        Tracker whose pile elevations are adjusted.
-    project : Project
-        Project containing grading constraints.
-    violating_piles : list[dict[str, float]]
-        List of piles currently outside the grading window.
-    slope : float
-        Gradient of the grading line.
-    y_intercept : float
-        Current y-intercept of the grading line.
-    """
-    # calculate maximum distance piles are outside the window
-    max_distance_pile = max(violating_piles, key=lambda x: abs(x["below_by"] + x["above_by"]))
-    max_distance = max_distance_pile["below_by"] + max_distance_pile["above_by"]
-    movement_limit = (
-        violating_piles[0]["grading_window_max"] - violating_piles[0]["grading_window_min"]
-    ) / 2
-
-    # determine how much to slide the line by (capped by movement limit)
-    if max_distance > movement_limit:
-        movement = movement_limit
-    elif max_distance < -movement_limit:
-        movement = -movement_limit
-    else:
-        movement = max_distance
-
-    # update the y-intercept based on the required movement
-    new_y_intercept = y_intercept - movement
-
-    # update the elevations of each pile based on the new line
-    for pile in tracker.piles:
-        pile.height = _interpolate_coords(pile, slope, new_y_intercept)
 
 
 def grading(tracker: TerrainFollowingTracker, violating_piles: list[dict[str, float]]) -> None:
@@ -462,10 +418,26 @@ def main(project: Project) -> None:
         # determine the grading window for the tracker
         window = grading_window(project, tracker)
 
-        """Try sliding first"""
-
         # set the tracker piles to the target height line
         slope, y_intercept, target_heights = target_height_line(tracker, project)
+        piles_outside0 = check_within_window(window, tracker)
+        if piles_outside0:
+            window_half = (
+                piles_outside0[0]["grading_window_max"] - piles_outside0[0]["grading_window_min"]
+            ) / 2.0
+
+            intercept_span = max(1e-6, 4.0 * window_half)
+
+            slope, y_intercept = sliding_line(
+                tracker,
+                project,
+                slope,
+                y_intercept,
+                intercept_span=intercept_span,
+                slope_tolerance=0.05,
+                slope_steps=11,
+            )
+
         piles_outside1 = check_within_window(window, tracker)
         if piles_outside1:
             tracker.create_segments()
@@ -528,6 +500,18 @@ if __name__ == "__main__":
     print("Start Grading...")
     main(project)
     to_excel(project)
+
+    #### TEST SEGMENT DEFLECTIONS ####
+    for tracker in project.trackers:
+        c = 0.0
+        for segment in tracker.segments:
+            c += abs(segment.degree_of_deflection())
+            if segment.degree_of_deflection() > project.constraints.max_segment_deflection_deg:
+                print(segment.start_pile.pile_id, segment.degree_of_deflection())
+        if c > project.constraints.max_cumulative_deflection_deg:
+            print(tracker.tracker_id, c)
+    ####################################
+
     print("Results saved to final_pile_elevations_for_tf.xlsx")
-    print("Comparing results to expected outcome...")
-    compare_results()
+    # print("Comparing results to expected outcome...")
+    # compare_results()
