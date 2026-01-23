@@ -14,7 +14,7 @@ class EastWest:
     tracker_axis_angle_max: float  # degrees
     sun_angle: float  # degrees
     project: Project
-    pitch: float  # ????
+    pitch: float  # gap between east and west piles (compare northings?)
 
     def max_idk(self, east_tracker: TrackerABC, west_tracker: TrackerABC) -> float:
         max_shadow_length = 1000 / (math.tan(self.sun_angle))
