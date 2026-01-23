@@ -286,26 +286,29 @@ def alteration1(
                 # if the distance is to far from the window, move by the max allowed change
                 pile.height -= max_vertical_change
                 p["moved_by"] = -abs(max_vertical_change)
+
             else:
                 # set the pile height exactly to the top of the grading window
                 pile.height = p["grading_window_max"]
                 p["moved_by"] = -dist_to_window
+
         elif dist_to_window < 0:
             # current height is sitting below the grading window, pile moved up
             if abs(dist_to_window) > max_vertical_change:
                 # if the distance is to far from the window, move by the max allowed change
                 pile.height += max_vertical_change
                 p["moved_by"] = abs(max_vertical_change)
+
             else:
                 # set the pile height exactly to the bottom of the grading window
                 pile.height = p["grading_window_min"]
                 p["moved_by"] = -dist_to_window
+
         else:
             continue
         pile_heights = []
         for pile in tracker.piles:
             pile_heights.append(pile.height)
-        # print(pile.pile_id, pile.height, p["moved_by"], dist_to_window, max_vertical_change)
     return violating_piles, pile_heights
 
 
@@ -331,7 +334,7 @@ def slope_correction(
         List of all the pile heights when they were set to the target height
     """
     # for pile in tracker.piles:
-    # print(pile.pile_id, target_heights[pile.pile_in_tracker - 1], pile.height)
+    #     print(pile.pile_id, target_heights[pile.pile_in_tracker - 1], pile.height)
     # for all the piles that were moved in alteration1, move the adjacent pile the same amount
     for p in reversed(violating_piles):
         this_id = p["pile_in_tracker"]
@@ -339,81 +342,42 @@ def slope_correction(
         if next_id > tracker.pole_count:
             continue  # handles the case that the last pile was moved and there is no next pile
         next_pile = tracker.get_pile_in_tracker(next_id)
-        moved_by = float(p.get("moved_by", 0.0) or 0.0)
         # print(tracker.get_pile_in_tracker(this_id).height)
-        adjustment = abs(tracker.get_pile_in_tracker(this_id).height - target_heights[this_id - 1])
-        if moved_by < 0:
-            # pile was above the window and moved down
-            next_pile.height -= adjustment
-        else:
-            # pile was below the window and moved up
-            next_pile.height += abs(adjustment)
-    for pile in tracker.piles:
-        print(pile.pile_id, pile.height)
+        adjustment = tracker.get_pile_in_tracker(this_id).height - target_heights[this_id - 1]
+        next_pile.height += adjustment
     if not tracker.segments:
         tracker.create_segments()
 
-    for i in range(2):  # iterate slope correction twice
+    # for pile in tracker.piles:
+    #     print(pile.pile_id, pile.height)
+    for _ in range(3):  # iterate slope correction thrice
         # calculate slope delta: the difference between the incoming and outgoing segment slopes
         # for all piles
         for pile in tracker.piles:
             if pile.pile_in_tracker == 1 or pile.pile_in_tracker == len(tracker.piles):
-                slope_delta = 0.0  # first and last piles haves no slope delta
                 continue  # next calculation not needed for first and last piles
             else:
                 incoming_segment = tracker.get_segment_by_id(pile.get_incoming_segment_id())
                 outgoing_segment = tracker.get_segment_by_id(pile.get_outgoing_segment_id(tracker))
                 slope_delta = incoming_segment.slope() - outgoing_segment.slope()
+                # print(pile.pile_id, slope_delta)
             length = abs(incoming_segment.length())
             if slope_delta > project.max_strict_segment_slope_change:
                 # upwards slope is steeper than allowed, lower the pile
                 correction = length * (slope_delta - project.max_strict_segment_slope_change)
-                # print(
-                #     1, pile.pile_id, pile.height, correction, length,
-                #     slope_delta
-                # )
             elif slope_delta < -project.max_strict_segment_slope_change:
                 # downwards slope is steeper than allowed, raise the pile
                 correction = length * (slope_delta + project.max_strict_segment_slope_change)
-                # print(
-                #     2, pile.pile_id, pile.height, correction, length,
-                #     slope_delta
-                # )
             else:
                 correction = 0.0
             pile.height -= correction
+
+    # for pile in tracker.piles:
+    #     print(pile.pile_id, pile.height)
     heights_after_correction = []
     for pile in tracker.piles:
         heights_after_correction.append(pile.height)
     return heights_after_correction
-
-
-# def alteration2(
-#     tracker: TerrainFollowingTracker, target_heights: list[float], heights_after1: list[float]
-# ) -> None:
-#     """
-#     Moves piles within tracker based on if the pile before was moved previously
-
-#     Parameters
-#     ----------
-#     tracker : TerrainFollowingTracker
-#         The tracker containing the piles to be adjusted.
-#     violating_piles : list[dict[str, float]]
-#         List of piles that were outside of the grading window and adjusted in the previous
-#         alteration.
-#     """
-#     tracker.sort_by_pole_position()
-
-#     for pile in tracker.piles:
-#         if (
-#             pile.pile_in_tracker != tracker.pole_count
-#             and pile.pile_in_tracker != tracker.pole_count - 1
-#         ):
-#             array_index = pile.pile_in_tracker - 1
-#             diff = heights_after1[array_index] - target_heights[array_index]
-#             if diff != 0:
-#                 # if tracker was previously moved up or down move the next one the same amount
-#                 tracker.get_pile_in_tracker(pile.pile_in_tracker + 1).height += diff
 
 
 def alteration3(
@@ -435,7 +399,6 @@ def alteration3(
     """
     # determine the average distance that piles are outside the grading window
     total_distance = 0.0
-
     for pile in tracker.piles:
         array_index = pile.pile_in_tracker - 1
         if heights_after1[array_index] > pile.true_max_height(project):
@@ -446,12 +409,41 @@ def alteration3(
             dist_to_window = 0
         total_distance += dist_to_window
     average_distance = total_distance / tracker.pole_count
-    # print(tracker.tracker_id, average_distance)
     # if the average distance is larger than half the grading window, limit the adjustment
     half_window = (
-        tracker.get_first().true_max_height(project) + tracker.get_first().true_min_height(project)
+        tracker.get_first().true_max_height(project) - tracker.get_first().true_min_height(project)
     ) / 2
-    adjustment = max(-half_window, min(half_window, average_distance))
+    optimal_adjustment = max(-half_window, min(half_window, average_distance))
+
+    # double check to make sure the adjustment wont put the first and last trackers out of the
+    # grading window
+    first = tracker.get_first()
+    last = tracker.get_last()
+
+    first_index = first.pile_in_tracker - 1
+    last_index = last.pile_in_tracker - 1
+
+    first_prior_height = heights_after_correction[first_index]
+    last_prior_height = heights_after_correction[last_index]
+
+    # Allowed adjustment range from endpoints:
+    # adjustment in [h - h_max, h - h_min]
+    a0_min = first_prior_height - first.true_max_height(project)
+    a0_max = first_prior_height - first.true_min_height(project)
+
+    a1_min = last_prior_height - last.true_max_height(project)
+    a1_max = last_prior_height - last.true_min_height(project)
+
+    allowed_min = max(a0_min, a1_min)
+    allowed_max = min(a0_max, a1_max)
+
+    # If the windows are inconsistent (shouldn't happen), fall back to no adjustment
+    if allowed_min > allowed_max:
+        adjustment = 0.0
+    else:
+        # Might need to change the adjustment if the previously calculated puts the first and last
+        # piles out of the window
+        adjustment = max(allowed_min, min(allowed_max, optimal_adjustment))
     # adjust all piles in the tracker by the average distance
     for pile in tracker.piles:
         pile.height = heights_after_correction[pile.pile_in_tracker - 1] - adjustment
@@ -475,7 +467,6 @@ def main(project: Project) -> None:
         # set the tracker piles to the target height line
         slope, y_intercept, target_heights = target_height_line(tracker, project)
         piles_outside1 = check_within_window(window, tracker)
-
         if piles_outside1:
             tracker.create_segments()
             updated_piles_outside1, heights_after1 = alteration1(tracker, project, piles_outside1)
@@ -512,7 +503,7 @@ if __name__ == "__main__":
     constraints = ProjectConstraints(
         min_reveal_height=3.22,
         max_reveal_height=5,
-        pile_install_tolerance=0.05,
+        pile_install_tolerance=0.05 * 2,
         max_incline=0.15,
         target_height_percantage=0.5,
         max_angle_rotation=0.0,
