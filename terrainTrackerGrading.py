@@ -397,56 +397,189 @@ def slope_correction(
         #     break
 
 
-def alteration3(project: Project, tracker: TerrainFollowingTracker) -> float:
-    """
-    Excel-style global shift:
-    - average violation over violating piles only
-    - clamp shift so endpoints stay within their windows
-    Returns applied adjustment.
-    """
-    total = 0.0
-    count = 0
+# def alteration3(project: Project, tracker: TerrainFollowingTracker) -> float:
+#     """
+#     Excel-style global shift:
+#     - average violation over violating piles only
+#     - clamp shift so endpoints stay within their windows
+#     Returns applied adjustment.
+#     """
+#     total = 0.0
+#     count = 0
 
-    for pile in tracker.piles:
-        hi = pile.true_max_height(project)
-        lo = pile.true_min_height(project)
-        if pile.height > hi:
-            total += pile.height - hi
-            count += 1
-        elif pile.height < lo:
-            total += pile.height - lo
-            count += 1
+#     for pile in tracker.piles:
+#         hi = pile.true_max_height(project)
+#         lo = pile.true_min_height(project)
+#         if pile.height > hi:
+#             total += pile.height - hi
+#             count += 1
+#         elif pile.height < lo:
+#             total += pile.height - lo
+#             count += 1
 
-    if count == 0:
+#     if count == 0:
+#         return 0.0
+
+#     avg = total / count  # ✅ only violators
+
+#     first = tracker.get_first()
+#     last = tracker.get_last()
+
+#     # ✅ true half-window
+#     half_window = (first.true_max_height(project) - first.true_min_height(project)) / 2.0
+#     optimal = max(-half_window, min(half_window, avg))
+
+#     # ✅ clamp so endpoints stay in window after shifting
+#     a0_min = first.height - first.true_max_height(project)
+#     a0_max = first.height - first.true_min_height(project)
+#     a1_min = last.height - last.true_max_height(project)
+#     a1_max = last.height - last.true_min_height(project)
+
+#     allowed_min = max(a0_min, a1_min)
+#     allowed_max = min(a0_max, a1_max)
+
+#     if allowed_min > allowed_max:
+#         adjustment = 0.0
+#     else:
+#         adjustment = max(allowed_min, min(allowed_max, optimal))
+
+#     for pile in tracker.piles:
+#         pile.height -= adjustment
+
+#     return adjustment
+
+
+def _total_grading_cost(violations: list[dict[str, float]]) -> float:
+    # below_by is negative, above_by is positive in your structure
+    return sum(abs(v["below_by"]) + abs(v["above_by"]) for v in violations)
+
+
+def alteration3_sliding_shift(
+    project: Project,
+    tracker: TerrainFollowingTracker,
+    *,
+    span: float | None = None,
+    coarse_steps: int = 121,
+    fine_steps: int = 121,
+    fine_span_fraction: float = 0.1,
+) -> float:
+    """
+    Like sliding_line, but ONLY optimises a uniform vertical shift (intercept-only).
+    DOES NOT change slope -> DOES NOT change segment/cumulative angles at all.
+
+    Constraints:
+      - first pile remains within its grading window
+      - last pile remains within its grading window
+
+    Objective:
+      - minimise total grading-window violation cost over all piles after the shift.
+
+    Returns
+    -------
+    float
+        The applied shift (signed). Heights updated by: pile.height -= shift
+    """
+    if not tracker.piles:
         return 0.0
 
-    avg = total / count  # ✅ only violators
+    # Ensure consistent ordering
+    tracker.piles.sort(key=lambda p: p.pile_in_tracker)
+
+    # Cache current heights
+    original_heights = [p.height for p in tracker.piles]
+
+    # Compute a window snapshot ONCE (windows depend on current_elevation; shift doesn't change that)
+    window0 = grading_window(project, tracker)
 
     first = tracker.get_first()
     last = tracker.get_last()
 
-    # ✅ true half-window
-    half_window = (first.true_max_height(project) - first.true_min_height(project)) / 2.0
-    optimal = max(-half_window, min(half_window, avg))
+    # Feasible shift interval from endpoints:
+    # lo <= h - shift <= hi  =>  h - hi <= shift <= h - lo
+    f_lo = first.true_min_height(project)
+    f_hi = first.true_max_height(project)
+    l_lo = last.true_min_height(project)
+    l_hi = last.true_max_height(project)
 
-    # ✅ clamp so endpoints stay in window after shifting
-    a0_min = first.height - first.true_max_height(project)
-    a0_max = first.height - first.true_min_height(project)
-    a1_min = last.height - last.true_max_height(project)
-    a1_max = last.height - last.true_min_height(project)
+    f_min_shift = first.height - f_hi
+    f_max_shift = first.height - f_lo
+    l_min_shift = last.height - l_hi
+    l_max_shift = last.height - l_lo
 
-    allowed_min = max(a0_min, a1_min)
-    allowed_max = min(a0_max, a1_max)
+    allowed_min = max(f_min_shift, l_min_shift)
+    allowed_max = min(f_max_shift, l_max_shift)
 
+    # If endpoints are already inconsistent, do nothing (or pick 0)
     if allowed_min > allowed_max:
-        adjustment = 0.0
+        return 0.0
+
+    # Choose a default search span if not provided
+    # Span should cover the feasible interval; this mirrors how sliding_line uses intercept_span.
+    if span is None:
+        # half-width around the midpoint that covers the full allowed interval
+        mid = 0.5 * (allowed_min + allowed_max)
+        span = 0.5 * (allowed_max - allowed_min)
+        span = max(span, 1e-9)
+        initial = mid
     else:
-        adjustment = max(allowed_min, min(allowed_max, optimal))
+        # centre the search around "no shift" but clamp to allowed interval
+        initial = max(allowed_min, min(allowed_max, 0.0))
+        span = max(span, 1e-9)
 
-    for pile in tracker.piles:
-        pile.height -= adjustment
+    def apply_shift(s: float) -> None:
+        for pile, h0 in zip(tracker.piles, original_heights):
+            pile.height = h0 - s
 
-    return adjustment
+    def eval_shift(s: float) -> tuple[float, list[dict[str, float]], bool]:
+        # Enforce feasibility by endpoints (fast reject)
+        if s < allowed_min or s > allowed_max:
+            return float("inf"), [], False
+
+        apply_shift(s)
+
+        # Endpoints guaranteed in-window due to allowed interval,
+        # but keep this consistent with sliding_line logic:
+        viols = check_within_window(window0, tracker)
+        cost = _total_grading_cost(viols)
+        return cost, viols, True
+
+    best_s = initial
+    best_cost = float("inf")
+
+    # --- coarse search over [initial-span, initial+span] intersected with allowed ---
+    lo = max(allowed_min, initial - span)
+    hi = min(allowed_max, initial + span)
+
+    if coarse_steps < 2:
+        coarse_steps = 2
+
+    for k in range(coarse_steps):
+        s = lo + (hi - lo) * (k / (coarse_steps - 1))
+        cost, _, ok = eval_shift(s)
+        if ok and cost < best_cost:
+            best_cost = cost
+            best_s = s
+
+    # --- fine search around best coarse ---
+    fine_span = (hi - lo) * fine_span_fraction
+    fine_span = max(fine_span, 1e-9)
+
+    lo2 = max(allowed_min, best_s - fine_span)
+    hi2 = min(allowed_max, best_s + fine_span)
+
+    if fine_steps < 2:
+        fine_steps = 2
+
+    for k in range(fine_steps):
+        s = lo2 + (hi2 - lo2) * (k / (fine_steps - 1))
+        cost, _, ok = eval_shift(s)
+        if ok and cost < best_cost:
+            best_cost = cost
+            best_s = s
+
+    # Apply the best shift permanently
+    apply_shift(best_s)
+    return best_s
 
 
 def verify_and_fix_deflections(tracker: TerrainFollowingTracker, project: Project) -> None:
@@ -509,7 +642,8 @@ def main(project: Project) -> None:
             updated_piles_outside1 = alteration1(tracker, project, piles_outside1)
             slope_correction(tracker, project, updated_piles_outside1, target_heights)
 
-            alteration3(project, tracker)
+            # alteration3(project, tracker)
+            alteration3_sliding_shift(project, tracker)
 
         # perform one last check of angles
         verify_and_fix_deflections(tracker, project)
