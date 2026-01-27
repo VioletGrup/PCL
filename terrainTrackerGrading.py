@@ -72,9 +72,7 @@ def _window_by_pile_in_tracker(
     return out
 
 
-def _interpolate_coords(
-    pile: TerrainFollowingPile, slope: float, y_intercept: float
-) -> float:
+def _interpolate_coords(pile: TerrainFollowingPile, slope: float, y_intercept: float) -> float:
     """
     Interpolate the elevation of a pile from a linear grading line.
 
@@ -95,9 +93,7 @@ def _interpolate_coords(
     return slope * pile.northing + y_intercept
 
 
-def grading_window(
-    project: Project, tracker: TerrainFollowingTracker
-) -> list[dict[str, float]]:
+def grading_window(project: Project, tracker: TerrainFollowingTracker) -> list[dict[str, float]]:
     """
     Generate the grading window for all piles in a tracker.
 
@@ -128,9 +124,7 @@ def grading_window(
     return window
 
 
-def target_height_line(
-    tracker: TerrainFollowingTracker, project: Project
-) -> tuple[float, float]:
+def target_height_line(tracker: TerrainFollowingTracker, project: Project) -> tuple[float, float]:
     """
     Set pile elevations along a target height line constrained by project limits.
     Different to flat trackers as it determines the slope based on the current ground
@@ -154,9 +148,7 @@ def target_height_line(
         last_pile.northing - first_pile.northing
     )
     max_incline = project.constraints.max_incline
-    slope = max(
-        -max_incline, min(max_incline, slope)
-    )  # ensure slope is below max slope
+    slope = max(-max_incline, min(max_incline, slope))  # ensure slope is below max slope
     first_pile.height = first_pile.pile_at_target_height(project)
     pile_y_intercept = _y_intercept(slope, first_pile.northing, first_pile.height)
 
@@ -236,13 +228,10 @@ def sliding_line(
         Current y-intercept of the grading line.
     """
     # calculate maximum distance piles are outside the window
-    max_distance_pile = max(
-        violating_piles, key=lambda x: abs(x["below_by"] + x["above_by"])
-    )
+    max_distance_pile = max(violating_piles, key=lambda x: abs(x["below_by"] + x["above_by"]))
     max_distance = max_distance_pile["below_by"] + max_distance_pile["above_by"]
     movement_limit = (
-        violating_piles[0]["grading_window_max"]
-        - violating_piles[0]["grading_window_min"]
+        violating_piles[0]["grading_window_max"] - violating_piles[0]["grading_window_min"]
     ) / 2
 
     # determine how much to slide the line by (capped by movement limit)
@@ -261,9 +250,7 @@ def sliding_line(
         pile.height = _interpolate_coords(pile, slope, new_y_intercept)
 
 
-def grading(
-    tracker: TerrainFollowingTracker, violating_piles: list[dict[str, float]]
-) -> None:
+def grading(tracker: TerrainFollowingTracker, violating_piles: list[dict[str, float]]) -> None:
     """
     Determine the new ground elevations for piles that fall outside the allowed grading window
 
@@ -309,9 +296,7 @@ def alteration1(
         segment = tracker.get_segment_by_id(segment_id)
 
         # find the maximum vertical change allowed for the segment based on defelction constraints
-        max_vertical_change = (
-            segment.length() * project.max_conservative_segment_slope_change
-        )
+        max_vertical_change = segment.length() * project.max_conservative_segment_slope_change
         dist_to_window = p["above_by"] + p["below_by"]
         # print(tracker.tracker_id, p["pile_in_tracker"], dist_to_window)
 
@@ -375,28 +360,20 @@ def slope_correction(
                 slope_delta = 0.0  # first and last piles haves no slope delta
                 continue  # next calculation not needed for first and last piles
             else:
-                incoming_segment = tracker.get_segment_by_id(
-                    pile.get_incoming_segment_id()
-                )
-                outgoing_segment = tracker.get_segment_by_id(
-                    pile.get_outgoing_segment_id(tracker)
-                )
+                incoming_segment = tracker.get_segment_by_id(pile.get_incoming_segment_id())
+                outgoing_segment = tracker.get_segment_by_id(pile.get_outgoing_segment_id(tracker))
                 slope_delta = incoming_segment.slope() - outgoing_segment.slope()
             length = abs(incoming_segment.length())
             if slope_delta > project.max_strict_segment_slope_change:
                 # upwards slope is steeper than allowed, lower the pile
-                correction = length * (
-                    slope_delta - project.max_strict_segment_slope_change
-                )
+                correction = length * (slope_delta - project.max_strict_segment_slope_change)
                 # print(
                 #     1, pile.pile_id, pile.height, correction, length,
                 #     slope_delta
                 # )
             elif slope_delta < -project.max_strict_segment_slope_change:
                 # downwards slope is steeper than allowed, raise the pile
-                correction = length * (
-                    slope_delta + project.max_strict_segment_slope_change
-                )
+                correction = length * (slope_delta + project.max_strict_segment_slope_change)
                 # print(
                 #     2, pile.pile_id, pile.height, correction, length,
                 #     slope_delta
@@ -552,9 +529,7 @@ def main(project: Project) -> None:
 
         if piles_outside1:
             tracker.create_segments()
-            updated_piles_outside1, heights_after1 = alteration1(
-                tracker, project, piles_outside1
-            )
+            updated_piles_outside1, heights_after1 = alteration1(tracker, project, piles_outside1)
             alteration3(project, tracker)
             slope_correction(tracker, project)
             # for pile in tracker.piles:  ##############
@@ -597,8 +572,8 @@ if __name__ == "__main__":
     # Load project from Excel
 
     print("Loading data from Excel...")
-    excel_path = "PCL/XTR.xlsx"  # change if needed
-    sheet_name = "Inputs"  # change to your actual sheet name
+    excel_path = "PCL/MARYVALE XTR PILING 12D DTM POINTCLOUD.xlsx"  # change if needed
+    sheet_name = "in"  # change to your actual sheet name
 
     project = load_project_from_excel(
         excel_path=excel_path,
@@ -626,9 +601,7 @@ if __name__ == "__main__":
         # Determine direction (northing increasing or decreasing along pile_in_tracker)
         first = tracker.get_first()
         last = tracker.get_last()
-        north_to_south = (
-            first.northing > last.northing
-        )  # True means pile 1 is more north
+        north_to_south = first.northing > last.northing  # True means pile 1 is more north
 
         centre = tracker.get_centre_pile()
         centre_id = centre.pile_in_tracker
