@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from BasePile import BasePile
+from .BasePile import BasePile
 
 if TYPE_CHECKING:
     from TerrainFollowingTracker import TerrainFollowingTracker

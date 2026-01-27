@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 
 
+import math
 from typing import Dict
 
-from flatTrackerGrading import sliding_line
-from Project import Project
-from ProjectConstraints import ProjectConstraints
-from TerrainFollowingPile import TerrainFollowingPile
-from TerrainFollowingTracker import TerrainFollowingTracker
-from testing_compare_tf import compare_results
-from testing_get_data_tf import load_project_from_excel, to_excel
+from .flatTrackerGrading import sliding_line
+from .Project import Project
+from .ProjectConstraints import ProjectConstraints
+from .TerrainFollowingPile import TerrainFollowingPile
+from .TerrainFollowingTracker import TerrainFollowingTracker
+from .testing_compare_tf import compare_results
+from .testing_get_data_tf import load_project_from_excel, to_excel
 
 
 def _y_intercept(slope: float, x: float, y: float) -> float:
@@ -33,7 +34,9 @@ def _y_intercept(slope: float, x: float, y: float) -> float:
     return y - slope * x
 
 
-def _window_by_pile_in_tracker(window: list[dict[str, float]]) -> Dict[int, tuple[float, float]]:
+def _window_by_pile_in_tracker(
+    window: list[dict[str, float]],
+) -> Dict[int, tuple[float, float]]:
     """
     Convert grading window data into a lookup dictionary.
 
@@ -205,67 +208,58 @@ def grading(tracker: TerrainFollowingTracker, violating_piles: list[dict[str, fl
 
 
 def alteration1(
-    tracker: TerrainFollowingTracker, project: Project, violating_piles: list[dict[str, float]]
+    tracker: TerrainFollowingTracker,
+    project: Project,
+    violating_piles: list[dict[str, float]],
 ) -> list[dict[str, float]]:
     """
-    Adjust pile heights to fit within or as close to the grading window while respecting
-    segment deflection constraints.
-    Parameters
-    ----------
-    tracker : TerrainFollowingTracker
-        The tracker containing the piles to be adjusted.
-    project : Project
-        The project containing grading constraints.
-    violating_piles : list[dict[str, float]]
-        List of piles currently outside the grading window.
-    Returns
-    -------
-    list[dict[str, float]]
-        List of piles that were moved in this alteration including how far they have moved
+    Adjust pile heights to fit within the grading window while respecting
+    segment deflection constraints. Uses the CLEAN approach.
     """
+    segment_deflection_limit = math.radians(project.constraints.max_segment_deflection_deg)
+
     for p in violating_piles:
         pile = tracker.get_pile_in_tracker(p["pile_in_tracker"])
         segment_id = pile.get_incoming_segment_id()
         if segment_id == -1:
-            continue  # skip last piles
+            p["moved_by"] = 0.0
+            continue  # skip first and last piles
+
         segment = tracker.get_segment_by_id(segment_id)
 
-        # find the maximum vertical change allowed for the segment based on defelction constraints
-        max_vertical_change = segment.length() * project.max_conservative_segment_slope_change
-        dist_to_window = p["above_by"] + p["below_by"]
-        # print(tracker.tracker_id, p["pile_in_tracker"], dist_to_window)
+        # Maximum allowable vertical difference based on segment deflection limit
+        max_vertical_delta = segment.length() * math.tan(segment_deflection_limit)
 
-        # adjust the height of the pile within the allowed vertical change
-        if dist_to_window > 0:
-            # current height is sitting above the grading window, pile moved down
-            if dist_to_window > max_vertical_change:
-                # if the distance is to far from the window, move by the max allowed change
-                pile.height -= max_vertical_change
-                p["moved_by"] = -abs(max_vertical_change)
+        # Current segment endpoint heights
+        start_pile_height = segment.start_pile.height
+        end_pile_height = segment.end_pile.height
 
-            else:
-                # set the pile height exactly to the top of the grading window
-                pile.height = p["grading_window_max"]
-                p["moved_by"] = -dist_to_window
+        # Allowable bounds for end pile to satisfy segment deflection
+        end_pile_min_height = start_pile_height - max_vertical_delta
+        end_pile_max_height = start_pile_height + max_vertical_delta
 
-        elif dist_to_window < 0:
-            # current height is sitting below the grading window, pile moved up
-            if abs(dist_to_window) > max_vertical_change:
-                # if the distance is to far from the window, move by the max allowed change
-                pile.height += max_vertical_change
-                p["moved_by"] = abs(max_vertical_change)
+        # Distance from grading window (+ve = above, -ve = below)
+        dist_to_grading_window = p["above_by"] + p["below_by"]
 
-            else:
-                # set the pile height exactly to the bottom of the grading window
-                pile.height = p["grading_window_min"]
-                p["moved_by"] = -dist_to_window
+        if dist_to_grading_window > 0:
+            # Pile is ABOVE grading window → move DOWN
+            max_allowed_downward = end_pile_height - end_pile_min_height
+            downward_movement = min(dist_to_grading_window, max_allowed_downward)
 
+            segment.end_pile.height -= downward_movement
+            p["moved_by"] = -downward_movement
+
+        elif dist_to_grading_window < 0:
+            # Pile is BELOW grading window → move UP
+            max_allowed_upward = end_pile_max_height - end_pile_height
+            upward_movement = min(-dist_to_grading_window, max_allowed_upward)
+
+            segment.end_pile.height += upward_movement
+            p["moved_by"] = upward_movement
         else:
-            continue
-        pile_heights = []
-        for pile in tracker.piles:
-            pile_heights.append(pile.height)
-    return violating_piles, pile_heights
+            p["moved_by"] = 0.0
+
+    return violating_piles
 
 
 def slope_correction(
@@ -277,82 +271,132 @@ def slope_correction(
     """
     Apply slope-change corrections to ensure segment-to-segment slope deltas are within limits.
 
-    This performs two steps:
-
-    1) Propagate alteration-1 movement into the adjacent (next) pile so that local deflection
-       constraints are not violated immediately by a single-pile move.
-
-    2) Iterate twice over internal piles to compute slope delta:
-
-           slope_delta = incoming_segment.slope() - outgoing_segment.slope()
-
-       If |slope_delta| exceeds project.max_strict_segment_slope_change, apply a vertical
-       correction proportional to incoming segment length.
-
-    Parameters
-    ----------
-    tracker : TerrainFollowingTracker
-        The tracker containing the piles to be adjusted.
-    project : Project
-        The project containing grading constraints.
-    violating_piles : list[dict[str, float]]
-        List of piles that were outside of the grading window and adjusted in the previous
-        alteration.
-    target_heights: list[float]
-        List of all the pile heights when they were set to the target height
+    Uses a multi-pass approach:
+    1. Propagate alteration-1 adjustments to adjacent piles
+    2. Iteratively correct segment deflections
+    3. Iteratively correct cumulative deflections
     """
-    # for pile in tracker.piles:
-    #     print(pile.pile_id, target_heights[pile.pile_in_tracker - 1], pile.height)
-    # for all the piles that were moved in alteration1, move the adjacent pile the same amount
+
+    # Step 1: Propagate adjustments from alteration1
     for p in reversed(violating_piles):
         this_id = p["pile_in_tracker"]
-        next_id = p["pile_in_tracker"] + 1
+        next_id = this_id + 1
         if next_id > tracker.pole_count:
-            continue  # handles the case that the last pile was moved and there is no next pile
+            continue
+
+        this_pile = tracker.get_pile_in_tracker(this_id)
         next_pile = tracker.get_pile_in_tracker(next_id)
-        # print(tracker.get_pile_in_tracker(this_id).height)
-        adjustment = tracker.get_pile_in_tracker(this_id).height - target_heights[this_id - 1]
+        adjustment = this_pile.height - target_heights[this_id - 1]
         next_pile.height += adjustment
+
     if not tracker.segments:
         tracker.create_segments()
 
-    # for pile in tracker.piles:
-    #     print(pile.pile_id, pile.height)
-    for _ in range(3):  # iterate slope correction thrice
-        # calculate slope delta: the difference between the incoming and outgoing segment slopes
-        # for all piles
-        for pile in tracker.piles:
-            if pile.pile_in_tracker == 1 or pile.pile_in_tracker == len(tracker.piles):
-                continue  # next calculation not needed for first and last piles
-            else:
-                incoming_segment = tracker.get_segment_by_id(pile.get_incoming_segment_id())
-                outgoing_segment = tracker.get_segment_by_id(pile.get_outgoing_segment_id(tracker))
-                slope_delta = incoming_segment.slope() - outgoing_segment.slope()
-                # print(pile.pile_id, slope_delta)
-            length = abs(incoming_segment.length())
-            if slope_delta > project.max_strict_segment_slope_change:
-                # upwards slope is steeper than allowed, lower the pile
-                correction = length * (slope_delta - project.max_strict_segment_slope_change)
-            elif slope_delta < -project.max_strict_segment_slope_change:
-                # downwards slope is steeper than allowed, raise the pile
-                correction = length * (slope_delta + project.max_strict_segment_slope_change)
-            else:
-                correction = 0.0
-            pile.height -= correction
+    # Convert limits to radians
+    segment_deflection_limit = math.radians(project.constraints.max_segment_deflection_deg)
+    wing_deflection_limit = math.radians(project.constraints.max_cumulative_deflection_deg)
 
-    # for pile in tracker.piles:
-    #     print(pile.pile_id, pile.height)
-    heights_after_correction = []
-    for pile in tracker.piles:
-        heights_after_correction.append(pile.height)
-    return heights_after_correction
+    # Identify wings
+    centre_pile = tracker.get_centre_pile()
+    centre_idx = centre_pile.pile_in_tracker
+
+    north_wing_segments = [
+        seg
+        for seg in tracker.segments
+        if seg.start_pile.pile_in_tracker < centre_idx
+        and seg.end_pile.pile_in_tracker <= centre_idx
+    ]
+
+    south_wing_segments = [
+        seg
+        for seg in tracker.segments
+        if seg.start_pile.pile_in_tracker >= centre_idx
+        and seg.end_pile.pile_in_tracker > centre_idx
+    ]
+
+    epsilon = 1e-12
+    max_iterations = 50  # Increased from 10
+
+    # Step 2: Iterative correction with adaptive relaxation
+    for iteration in range(max_iterations):
+        max_violation = 0.0
+
+        for wing in [north_wing_segments, south_wing_segments]:
+            if not wing:
+                continue
+
+            # Calculate current cumulative deflection
+            cumulative = sum(abs(math.radians(seg.degree_of_deflection())) for seg in wing)
+
+            # Step 2a: Fix individual segment violations first
+            for seg in wing:
+                theta = math.radians(seg.degree_of_deflection())
+                theta_abs = abs(theta)
+
+                if theta_abs <= segment_deflection_limit + epsilon:
+                    continue
+
+                max_violation = max(max_violation, theta_abs - segment_deflection_limit)
+
+                # Calculate target height for end pile
+                theta_lim = math.copysign(segment_deflection_limit, theta)
+                dx = seg.end_pile.northing - seg.start_pile.northing
+
+                if abs(dx) < epsilon:
+                    continue
+
+                desired_end_height = seg.start_pile.height + math.tan(theta_lim) * dx
+
+                # Use adaptive relaxation - be more aggressive as we iterate
+                relaxation = min(0.8, 0.3 + (iteration / max_iterations) * 0.5)
+                delta_h = desired_end_height - seg.end_pile.height
+                seg.end_pile.height += relaxation * delta_h
+
+            # Step 2b: Fix cumulative deflection violations
+            cumulative = sum(abs(math.radians(seg.degree_of_deflection())) for seg in wing)
+
+            if cumulative > wing_deflection_limit + epsilon:
+                max_violation = max(max_violation, cumulative - wing_deflection_limit)
+
+                excess = cumulative - wing_deflection_limit
+
+                # Distribute correction proportionally to each segment's contribution
+                total_deflection = sum(
+                    abs(math.radians(seg.degree_of_deflection())) for seg in wing
+                )
+
+                for seg in wing:
+                    theta = math.radians(seg.degree_of_deflection())
+                    theta_abs = abs(theta)
+
+                    # Calculate this segment's share of the reduction
+                    if total_deflection > epsilon:
+                        reduction_fraction = theta_abs / total_deflection
+                        theta_reduction = excess * reduction_fraction
+                    else:
+                        theta_reduction = excess / len(wing)
+
+                    dx = seg.end_pile.northing - seg.start_pile.northing
+                    if abs(dx) < epsilon:
+                        continue
+
+                    # Target angle after reduction
+                    theta_target = math.copysign(max(theta_abs - theta_reduction, 0.0), theta)
+                    desired_end_height = seg.start_pile.height + math.tan(theta_target) * dx
+
+                    relaxation = min(0.8, 0.3 + (iteration / max_iterations) * 0.5)
+                    delta_h = desired_end_height - seg.end_pile.height
+                    seg.end_pile.height += relaxation * delta_h
+
+        # Check for convergence
+        # if max_violation < epsilon:
+        #     print(f"Converged after {iteration + 1} iterations")
+        #     break
 
 
 def alteration3(
     project: Project,
     tracker: TerrainFollowingTracker,
-    heights_after1: list[float],
-    heights_after_correction: list[float],
 ) -> None:
     """
     Moves all the piles in the tracker based on the average distance of piles currently outside
@@ -368,11 +412,10 @@ def alteration3(
     # determine the average distance that piles are outside the grading window
     total_distance = 0.0
     for pile in tracker.piles:
-        array_index = pile.pile_in_tracker - 1
-        if heights_after1[array_index] > pile.true_max_height(project):
-            dist_to_window = heights_after1[array_index] - pile.true_max_height(project)
-        elif heights_after1[array_index] < pile.true_min_height(project):
-            dist_to_window = heights_after1[array_index] - pile.true_min_height(project)
+        if pile.height > pile.true_max_height(project):
+            dist_to_window = pile.height - pile.true_max_height(project)
+        elif pile.height < pile.true_min_height(project):
+            dist_to_window = pile.height - pile.true_min_height(project)
         else:
             dist_to_window = 0
         total_distance += dist_to_window
@@ -388,11 +431,8 @@ def alteration3(
     first = tracker.get_first()
     last = tracker.get_last()
 
-    first_index = first.pile_in_tracker - 1
-    last_index = last.pile_in_tracker - 1
-
-    first_prior_height = heights_after_correction[first_index]
-    last_prior_height = heights_after_correction[last_index]
+    first_prior_height = first.height
+    last_prior_height = last.height
 
     # Allowed adjustment range from endpoints:
     # adjustment in [h - h_max, h - h_min]
@@ -414,7 +454,28 @@ def alteration3(
         adjustment = max(allowed_min, min(allowed_max, optimal_adjustment))
     # adjust all piles in the tracker by the average distance
     for pile in tracker.piles:
-        pile.height = heights_after_correction[pile.pile_in_tracker - 1] - adjustment
+        pile.height -= adjustment
+
+
+def verify_and_fix_deflections(tracker: TerrainFollowingTracker, project: Project) -> None:
+    """Final pass to ensure all deflection constraints are met."""
+    if not tracker.segments:
+        tracker.create_segments()
+
+    segment_limit = project.constraints.max_segment_deflection_deg
+    cumulative_limit = project.constraints.max_cumulative_deflection_deg
+
+    # Check segment violations
+    for seg in tracker.segments:
+        deflection = abs(seg.degree_of_deflection())
+        if deflection > segment_limit:
+            # Adjust end pile to exactly meet limit
+            theta_lim = math.copysign(
+                math.radians(segment_limit), math.radians(seg.degree_of_deflection())
+            )
+            dx = seg.end_pile.northing - seg.start_pile.northing
+            if abs(dx) > 1e-9:
+                seg.end_pile.height = seg.start_pile.height + math.tan(theta_lim) * dx
 
 
 def main(project: Project) -> None:
@@ -453,18 +514,21 @@ def main(project: Project) -> None:
         piles_outside1 = check_within_window(window, tracker)
         if piles_outside1:
             tracker.create_segments()
-            updated_piles_outside1, heights_after1 = alteration1(tracker, project, piles_outside1)
-            heights_after_correction = slope_correction(
-                tracker, project, updated_piles_outside1, target_heights
-            )
+            updated_piles_outside1 = alteration1(tracker, project, piles_outside1)
+            slope_correction(tracker, project, updated_piles_outside1, target_heights)
 
-            alteration3(project, tracker, heights_after1, heights_after_correction)
+            alteration3(project, tracker)
+
+        # perform one last check of angles
+        verify_and_fix_deflections(tracker, project)
 
         # complete final grading for any piles still outside of the window
         piles_outside2 = check_within_window(window, tracker)
         if piles_outside2:
             grading(tracker, piles_outside2)
 
+        # perfrom one last check for segment and cumulative deflections
+        tracker.create_segments()
         # Set the final ground elevations, reveal heights and total heights of all piles,
         # some will remain the same
         for pile in tracker.piles:
@@ -476,27 +540,27 @@ def main(project: Project) -> None:
 if __name__ == "__main__":
     print("Initialising project...")
     constraints = ProjectConstraints(
-        min_reveal_height=3.22,
-        max_reveal_height=5,
-        pile_install_tolerance=0.05 * 2,
-        max_incline=0.15,
+        min_reveal_height=1.075,
+        max_reveal_height=1.6,
+        pile_install_tolerance=0.15,
+        max_incline=0.10,
         target_height_percantage=0.5,
         max_angle_rotation=0.0,
         max_cumulative_deflection_deg=4.0,
-        max_segment_deflection_deg=0.75,
+        max_segment_deflection_deg=0.5,
         edge_overhang=0.0,
     )
 
     # Load project from Excel
 
     print("Loading data from Excel...")
-    excel_path = "XTR.xlsx"  # change if needed
+    excel_path = "PCL/XTR.xlsx"  # change if needed
     sheet_name = "Inputs"  # change to your actual sheet name
 
     project = load_project_from_excel(
         excel_path=excel_path,
         sheet_name=sheet_name,
-        project_name="Punchs_Creek",
+        project_name="Maryvale",
         project_type="terrain_following",
         constraints=constraints,
     )
@@ -506,15 +570,69 @@ if __name__ == "__main__":
     to_excel(project)
 
     #### TEST SEGMENT DEFLECTIONS ####
+    t_north = 0
+    t_south = 0
+    s = 0
+
     for tracker in project.trackers:
-        c = 0.0
+        # Get centre pile to split wings
+        centre_pile = tracker.get_centre_pile()
+        centre_idx = centre_pile.pile_in_tracker
+
+        north_cumulative = 0.0
+        south_cumulative = 0.0
+
         for segment in tracker.segments:
-            c += abs(segment.degree_of_deflection())
-            if segment.degree_of_deflection() > project.constraints.max_segment_deflection_deg:
-                print(segment.start_pile.pile_id, segment.degree_of_deflection())
-        if c > project.constraints.max_cumulative_deflection_deg:
-            print(tracker.tracker_id, c)
+            deflection = round(abs(segment.degree_of_deflection()), 11)
+
+            # Check segment violation
+            if deflection > round(project.constraints.max_segment_deflection_deg, 11):
+                print(
+                    f"Segment violation: {segment.start_pile.pile_id} -> {segment.end_pile.pile_id}, "
+                    f"deflection: {segment.degree_of_deflection():.12f}°"
+                )
+                s += 1
+
+            # Accumulate by wing
+            if segment.end_pile.pile_in_tracker <= centre_idx:
+                # North wing (before/at center)
+                north_cumulative += deflection
+            elif segment.start_pile.pile_in_tracker >= centre_idx:
+                # South wing (at/after center)
+                south_cumulative += deflection
+
+        # Check cumulative violations by wing
+        north_cumulative = round(north_cumulative, 11)
+        south_cumulative = round(south_cumulative, 11)
+        max_cumulative = round(project.constraints.max_cumulative_deflection_deg, 11)
+
+        if north_cumulative > max_cumulative:
+            print(
+                f"North wing violation: Tracker {tracker.tracker_id}, "
+                f"cumulative: {north_cumulative:.12f}° (limit: {max_cumulative}°)"
+            )
+            t_north += 1
+
+        if south_cumulative > max_cumulative:
+            print(
+                f"South wing violation: Tracker {tracker.tracker_id}, "
+                f"cumulative: {south_cumulative:.12f}° (limit: {max_cumulative}°)"
+            )
+            t_south += 1
+
+    print(
+        f"\n{t_north} north wing violations, {t_south} south wing violations, "
+        f"{s} segment violations"
+    )
     ####################################
+
+    ####### GRADING COUNTER #######
+    x = 0
+    for tracker in project.trackers:
+        for pile in tracker.piles:
+            if pile.final_elevation != pile.initial_elevation:
+                x += 1
+    print(f"{x} piles requring grading")
 
     print("Results saved to final_pile_elevations_for_tf.xlsx")
     # print("Comparing results to expected outcome...")

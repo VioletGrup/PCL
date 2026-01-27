@@ -3,8 +3,8 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from BasePile import BasePile
-from TrackerABC import TrackerABC
+from .BasePile import BasePile
+from .TrackerABC import TrackerABC
 
 
 @dataclass

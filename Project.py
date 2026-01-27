@@ -6,11 +6,11 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Literal, Optional, Type, TypeVar
 
-from BasePile import BasePile
-from BaseTracker import BaseTracker
-from ProjectConstraints import ProjectConstraints
-from TerrainFollowingTracker import TerrainFollowingTracker
-from TrackerABC import TrackerABC
+from .BasePile import BasePile
+from .BaseTracker import BaseTracker
+from .ProjectConstraints import ProjectConstraints
+from .TerrainFollowingTracker import TerrainFollowingTracker
+from .TrackerABC import TrackerABC
 
 T = TypeVar("T", bound=BaseTracker)
 ProjectType = Literal["standard", "terrain_following"]
@@ -72,7 +72,9 @@ class Project:
             return 0.0
 
         assert self.constraints.max_cumulative_deflection_deg is not None
-        return math.tan((self.constraints.max_cumulative_deflection_deg * math.pi) / 180)
+        return math.tan(
+            (self.constraints.max_cumulative_deflection_deg * math.pi) / 180
+        )
 
     @property
     def max_segment_slope_change(self) -> float:
@@ -145,7 +147,9 @@ class Project:
         return self.get_tracker_by_id(tracker_id).get_pile_in_tracker(pile_in_tracker)
         # raises ValueError if not found
 
-    def get_trackers_on_easting(self, easting: float, ignore_ids: list[int]) -> list[TrackerABC]:
+    def get_trackers_on_easting(
+        self, easting: float, ignore_ids: list[int]
+    ) -> list[TrackerABC]:
         """Returns all the trackers with the same easting"""
         same_easting = []
         for tracker in self.trackers:
@@ -158,4 +162,6 @@ class Project:
     def get_tracker_length(self, tracker_id: int) -> float:
         """Returns the length of a given tracker, including the overhangs off the edge piles"""
         tracker = self.get_tracker_by_id(tracker_id)
-        return tracker.distance_first_to_last_pile + (self.constraints.edge_overhang * 2)
+        return tracker.distance_first_to_last_pile + (
+            self.constraints.edge_overhang * 2
+        )

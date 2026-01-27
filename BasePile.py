@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from Project import Project
+    from .Project import Project
 
 
 @dataclass
@@ -42,8 +42,12 @@ class BasePile:
     )  # elevation of the top of the pile, uesd during calcs
     current_elevation: float = field(init=False)
     final_elevation: float = field(init=False)  # final Z coordinate
-    pile_revealed: float = field(init=False, default=0.0)  # height of pile revealed above ground
-    total_height: float = field(init=False, default=0.0)  # final Z coordinate height of the pile
+    pile_revealed: float = field(
+        init=False, default=0.0
+    )  # height of pile revealed above ground
+    total_height: float = field(
+        init=False, default=0.0
+    )  # final Z coordinate height of the pile
 
     def __post_init__(self) -> None:
         """

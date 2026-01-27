@@ -5,10 +5,10 @@ from typing import Dict
 
 import pandas as pd
 
-from Project import Project
-from ProjectConstraints import ProjectConstraints
-from TerrainFollowingPile import TerrainFollowingPile
-from TerrainFollowingTracker import TerrainFollowingTracker
+from .Project import Project
+from .ProjectConstraints import ProjectConstraints
+from .TerrainFollowingPile import TerrainFollowingPile
+from .TerrainFollowingTracker import TerrainFollowingTracker
 
 
 def load_project_from_excel(
