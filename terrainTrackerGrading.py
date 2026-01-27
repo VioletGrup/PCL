@@ -213,53 +213,69 @@ def alteration1(
     violating_piles: list[dict[str, float]],
 ) -> list[dict[str, float]]:
     """
-    Adjust pile heights to fit within the grading window while respecting
-    segment deflection constraints. Uses the CLEAN approach.
+    Force every pile's height to the CENTRE of its grading window.
+
+    - Ignores ALL constraints (segment + cumulative deflection, etc.)
+    - Assumes later steps (slope_correction / verify_and_fix_deflections) will fix angles.
+    - Only changes pile.height (does NOT change ground/current_elevation).
+
+    Notes:
+    - This applies to *all piles in the tracker*, not just violators, because you asked
+      to bring all heights to the window centre.
+    - moved_by is recorded for piles present in violating_piles list (kept for debugging).
     """
-    segment_deflection_limit = math.radians(project.constraints.max_segment_deflection_deg)
+    # quick lookup so we can still report moved_by for the original violators
+    violator_ids = {v["pile_in_tracker"]: v for v in violating_piles}
 
-    for p in violating_piles:
-        pile = tracker.get_pile_in_tracker(p["pile_in_tracker"])
-        segment_id = pile.get_incoming_segment_id()
-        if segment_id == -1:
-            p["moved_by"] = 0.0
-            continue  # skip first and last piles
+    for pile in tracker.piles:
+        wmin = pile.true_min_height(project)
+        wmax = pile.true_max_height(project)
+        target = 0.5 * (wmin + wmax)
 
-        segment = tracker.get_segment_by_id(segment_id)
+        h0 = pile.height
+        pile.height = target
 
-        # Maximum allowable vertical difference based on segment deflection limit
-        max_vertical_delta = segment.length() * math.tan(segment_deflection_limit)
-
-        # Current segment endpoint heights
-        start_pile_height = segment.start_pile.height
-        end_pile_height = segment.end_pile.height
-
-        # Allowable bounds for end pile to satisfy segment deflection
-        end_pile_min_height = start_pile_height - max_vertical_delta
-        end_pile_max_height = start_pile_height + max_vertical_delta
-
-        # Distance from grading window (+ve = above, -ve = below)
-        dist_to_grading_window = p["above_by"] + p["below_by"]
-
-        if dist_to_grading_window > 0:
-            # Pile is ABOVE grading window → move DOWN
-            max_allowed_downward = end_pile_height - end_pile_min_height
-            downward_movement = min(dist_to_grading_window, max_allowed_downward)
-
-            segment.end_pile.height -= downward_movement
-            p["moved_by"] = -downward_movement
-
-        elif dist_to_grading_window < 0:
-            # Pile is BELOW grading window → move UP
-            max_allowed_upward = end_pile_max_height - end_pile_height
-            upward_movement = min(-dist_to_grading_window, max_allowed_upward)
-
-            segment.end_pile.height += upward_movement
-            p["moved_by"] = upward_movement
-        else:
-            p["moved_by"] = 0.0
+        # record movement for any pile that was flagged as a violator in the input list
+        v = violator_ids.get(pile.pile_in_tracker)
+        if v is not None:
+            v["grading_window_min"] = wmin
+            v["grading_window_max"] = wmax
+            v["moved_by"] = pile.height - h0
 
     return violating_piles
+
+
+# def alteration1(
+#     tracker: TerrainFollowingTracker,
+#     project: Project,
+#     violating_piles: list[dict[str, float]],
+# ) -> list[dict[str, float]]:
+#     """
+#     Snap any violating pile heights directly into their grading window.
+
+#     IMPORTANT:
+#     - This intentionally ignores segment/wing deflection constraints.
+#       You must run slope_correction() afterwards to restore deflection compliance.
+#     - It only changes pile.height (not ground/current_elevation).
+#     """
+#     for v in violating_piles:
+#         pid = v["pile_in_tracker"]
+#         pile = tracker.get_pile_in_tracker(pid)
+
+#         wmin = float(v["grading_window_min"])
+#         wmax = float(v["grading_window_max"])
+
+#         h0 = pile.height
+#         if h0 < wmin:
+#             pile.height = wmin
+#             v["moved_by"] = pile.height - h0
+#         elif h0 > wmax:
+#             pile.height = wmax
+#             v["moved_by"] = pile.height - h0
+#         else:
+#             v["moved_by"] = 0.0
+
+#     return violating_piles
 
 
 def slope_correction(
@@ -276,19 +292,6 @@ def slope_correction(
     2. Iteratively correct segment deflections
     3. Iteratively correct cumulative deflections
     """
-
-    # # Step 1: Propagate adjustments from alteration1
-    # for p in reversed(violating_piles):
-    #     this_id = p["pile_in_tracker"]
-    #     next_id = this_id + 1
-    #     if next_id > tracker.pole_count:
-    #         continue
-
-    #     this_pile = tracker.get_pile_in_tracker(this_id)
-    #     next_pile = tracker.get_pile_in_tracker(next_id)
-    #     adjustment = this_pile.height - target_heights[this_id - 1]
-    #     next_pile.height += adjustment
-
     if not tracker.segments:
         tracker.create_segments()
 
