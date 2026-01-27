@@ -30,6 +30,9 @@ export default function RunAnalysis() {
   const [legendOpen, setLegendOpen] = useState(true);
   const PAGE_SIZE = 100;
 
+  // ✅ NEW: pile jump input (bottom)
+  const [pileJump, setPileJump] = useState("");
+
   // Helpers
   const toNum = (v) => {
     if (typeof v === "number") return Number.isFinite(v) ? v : null;
@@ -53,6 +56,41 @@ export default function RunAnalysis() {
     if (n === null) return null;
     const radians = Math.atan(n / 100);
     return (radians * 180) / Math.PI;
+  };
+
+  // ✅ NEW: normalize user pile id input like "12.3" -> 12.03 (two digits)
+  const normalizePileId = (raw) => {
+    const s = String(raw ?? "").trim();
+    if (!s) return null;
+
+    // allow "12", "12.3", "12.03"
+    if (!s.includes(".")) {
+      const whole = Number(s);
+      if (!Number.isFinite(whole)) return null;
+      // default to ".01"? no. If no pole given, can't uniquely identify a pile.
+      // We'll treat it as invalid because pile_id needs tracker.pole
+      return null;
+    }
+
+    const [a, b = ""] = s.split(".");
+    if (!a) return null;
+
+    const tracker = Number(a);
+    if (!Number.isFinite(tracker)) return null;
+
+    const poleRaw = b.replace(/[^\d]/g, "");
+    if (!poleRaw) return null;
+
+    const pole2 = poleRaw.padStart(2, "0").slice(-2); // last two digits
+    const id = `${Math.trunc(tracker)}.${pole2}`;
+    const parsed = Number(id);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  // ✅ NEW: find pile robustly by rounding to 2dp
+  const findPileById = (piles, pileIdNum) => {
+    const target = Math.round(pileIdNum * 100);
+    return piles.find((p) => Math.round(Number(p.pile_id) * 100) === target) || null;
   };
 
   useEffect(() => {
@@ -86,7 +124,7 @@ export default function RunAnalysis() {
       setX(xLS);
       setY(yLS);
 
-      // Restore grading results if coming back from FramePage
+      // Restore grading results if coming back from FramePage / PileView
       if (state?.gradingResults) {
         setGradingResults(state.gradingResults);
       }
@@ -213,9 +251,6 @@ export default function RunAnalysis() {
 
       const params = JSON.parse(localStorage.getItem("pcl_parameters") || "{}");
 
-      // ✅ IMPORTANT:
-      // - tracker_edge_overhang must be sent (your backend expects edge_overhang)
-      // - XTR slope-change fields: UI is % but backend algo is degrees → convert here
       const segDefDeg =
         trackerType === "xtr" && params.maxSegmentSlopeChange ? pctToDeg(params.maxSegmentSlopeChange) : null;
 
@@ -233,10 +268,8 @@ export default function RunAnalysis() {
           target_height_percantage: 0.5,
           max_angle_rotation: 0.0,
 
-          // ✅ this was missing before
           tracker_edge_overhang: params.trackerEdgeOverhang ? parseFloat(params.trackerEdgeOverhang) : 0.0,
 
-          // ✅ send degrees to terrain-following algo
           max_segment_deflection_deg: segDefDeg,
           max_cumulative_deflection_deg: cumDefDeg,
         },
@@ -255,6 +288,9 @@ export default function RunAnalysis() {
 
       const result = await res.json();
       setGradingResults(result);
+
+      // ✅ OPTIONAL (recommended): persist so PileView can survive refresh if you want later
+      // localStorage.setItem("pcl_last_grading_results", JSON.stringify(result));
     } catch (e) {
       setError(e.message || "Grading failed");
     } finally {
@@ -402,6 +438,42 @@ export default function RunAnalysis() {
         trackerType,
         trackerResults,
         gradingResults,
+      },
+    });
+  };
+
+  // ✅ NEW: jump to pile page
+  const goToPile = () => {
+    if (!gradingResults || !gradingResults.piles) {
+      alert("Run grading first, then you can jump to a pile.");
+      return;
+    }
+
+    const pileIdNum = normalizePileId(pileJump);
+    if (pileIdNum === null) {
+      alert('Enter a Pile ID like "12.03" (tracker.pole). Example: 105.07');
+      return;
+    }
+
+    const pileObj = findPileById(gradingResults.piles, pileIdNum);
+    if (!pileObj) {
+      alert(`Pile ${pileIdNum.toFixed(2)} not found in grading results.`);
+      return;
+    }
+
+    const violation = (gradingResults.violations || []).find(
+      (v) => Math.round(Number(v.pile_id) * 100) === Math.round(pileIdNum * 100)
+    );
+
+    navigate(`/pile/${encodeURIComponent(pileIdNum.toFixed(2))}`, {
+      state: {
+        pileId: pileIdNum.toFixed(2),
+        pile: pileObj,
+        violation: violation || null,
+        fileName,
+        sheetName,
+        trackerType,
+        gradingResults, // keep for back nav + context
       },
     });
   };
@@ -702,9 +774,52 @@ export default function RunAnalysis() {
         )}
       </div>
 
+      {/* ✅ Footer: add pile jump input here */}
       {!error && (
         <footer className="ra-footer">
-          Hover shows Frame.Pole. Dropped non-numeric rows: <strong>{dropped.toLocaleString()}</strong>.
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              Hover shows Frame.Pole. Dropped non-numeric rows: <strong>{dropped.toLocaleString()}</strong>.
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                type="text"
+                value={pileJump}
+                onChange={(e) => setPileJump(e.target.value)}
+                placeholder='Go to pile (e.g. 12.03)'
+                style={{
+                  height: 38,
+                  padding: "0 12px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.20)",
+                  background: "rgba(255,255,255,0.10)",
+                  color: "rgba(255,255,255,0.92)",
+                  outline: "none",
+                  minWidth: 210,
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") goToPile();
+                }}
+              />
+
+              <button
+                onClick={goToPile}
+                style={{
+                  height: 38,
+                  padding: "0 14px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.20)",
+                  background: "rgba(242, 195, 0, 0.90)", // PCL-ish gold
+                  color: "#0b5b3f",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Open Pile
+              </button>
+            </div>
+          </div>
         </footer>
       )}
     </div>
