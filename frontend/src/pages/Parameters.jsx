@@ -18,30 +18,35 @@ export default function Parameters() {
   const [sheetName, setSheetName] = useState(sheetNameFromState);
   const [rowCount, setRowCount] = useState(rowCountFromState);
 
-  // Tracker type selection
   const [trackerType, setTrackerType] = useState(trackerTypeFromState); // "flat" | "xtr"
-
-  // Manufacturer selection (future auto-fill)
   const [manufacturer, setManufacturer] = useState("");
 
-  // Shared fields (Flat + XTR)
+  // Shared fields
   const [maxIncline, setMaxIncline] = useState(""); // %
   const [minPileReveal, setMinPileReveal] = useState(""); // m
   const [maxPileReveal, setMaxPileReveal] = useState(""); // m
   const [installationTolerance, setInstallationTolerance] = useState(""); // m
-
-  // ✅ NEW (Flat + XTR)
   const [trackerEdgeOverhang, setTrackerEdgeOverhang] = useState(""); // m
 
-  // XTR-only fields (slope change in %)
+  // XTR-only
   const [maxSegmentSlopeChange, setMaxSegmentSlopeChange] = useState(""); // %
   const [maxCumulativeSlopeChange, setMaxCumulativeSlopeChange] = useState(""); // %
 
+  // Module geometry
+  const [moduleLength, setModuleLength] = useState(""); // m
+  const [moduleWidth, setModuleWidth] = useState(""); // m
+  const [minClearance, setMinClearance] = useState(""); // m
+  const [maxTiltAngle, setMaxTiltAngle] = useState("60"); // deg ✅ NEW (default 60)
+
+  // Shading analysis
+  const [shadingEnabled, setShadingEnabled] = useState(false);
+  const [azimuth, setAzimuth] = useState(""); // deg
+  const [zenith, setZenith] = useState(""); // deg
+  const [sunAngle, setSunAngle] = useState(""); // deg
+
   const [error, setError] = useState("");
 
-  // Refresh-safe load
   useEffect(() => {
-    // Restore saved parameters
     try {
       const saved = JSON.parse(localStorage.getItem("pcl_parameters") || "null");
       if (saved) {
@@ -52,18 +57,25 @@ export default function Parameters() {
         setMinPileReveal(saved.minPileReveal ?? "");
         setMaxPileReveal(saved.maxPileReveal ?? "");
         setInstallationTolerance(saved.installationTolerance ?? "");
-
-        // ✅ restore new field
         setTrackerEdgeOverhang(saved.trackerEdgeOverhang ?? "");
 
         setMaxSegmentSlopeChange(saved.maxSegmentSlopeChange ?? "");
         setMaxCumulativeSlopeChange(saved.maxCumulativeSlopeChange ?? "");
+
+        setModuleLength(saved.moduleLength ?? "");
+        setModuleWidth(saved.moduleWidth ?? "");
+        setMinClearance(saved.minClearance ?? "");
+        setMaxTiltAngle(saved.maxTiltAngle ?? "60"); // ✅ restore
+
+        setShadingEnabled(Boolean(saved.shadingEnabled));
+        setAzimuth(saved.azimuth ?? "");
+        setZenith(saved.zenith ?? "");
+        setSunAngle(saved.sunAngle ?? "");
       }
     } catch {
       // ignore
     }
 
-    // If state missing after refresh, recover from pcl_config & columns
     try {
       if (!fileNameFromState || !sheetNameFromState) {
         const cfg = JSON.parse(localStorage.getItem("pcl_config") || "{}");
@@ -80,14 +92,12 @@ export default function Parameters() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Helpful display (not enforced)
   const halfTolerance = useMemo(() => {
     const t = Number(installationTolerance);
     if (!Number.isFinite(t) || t <= 0) return null;
     return t / 2;
   }, [installationTolerance]);
 
-  // When switching tracker type, clear fields that don't apply (optional but cleaner)
   useEffect(() => {
     setError("");
     if (trackerType === "flat") {
@@ -96,8 +106,15 @@ export default function Parameters() {
     }
   }, [trackerType]);
 
+  useEffect(() => {
+    if (!shadingEnabled) {
+      setAzimuth("");
+      setZenith("");
+      setSunAngle("");
+    }
+  }, [shadingEnabled]);
+
   function validateRequired() {
-    // Shared required
     if (
       !maxIncline ||
       !minPileReveal ||
@@ -108,18 +125,41 @@ export default function Parameters() {
       return "Please complete all required fields.";
     }
 
-    // XTR required extras
     if (trackerType === "xtr") {
       if (!maxSegmentSlopeChange || !maxCumulativeSlopeChange) {
         return "Please complete all required XTR slope change fields.";
       }
     }
 
-    // Basic numeric sanity checks
+    if (!moduleLength || !moduleWidth || !minClearance || !maxTiltAngle) {
+      return "Please enter Module length, Module width, Minimum clearance, and Max tilt angle.";
+    }
+
+    if (shadingEnabled) {
+      if (!azimuth || !zenith || !sunAngle) {
+        return "Please enter Azimuth, Zenith, and Sun Angle for shading analysis.";
+      }
+    }
+
     const minPR = Number(minPileReveal);
     const maxPR = Number(maxPileReveal);
     if (Number.isFinite(minPR) && Number.isFinite(maxPR) && maxPR < minPR) {
       return "Maximum pile reveal height must be greater than or equal to minimum pile reveal height.";
+    }
+
+    const mL = Number(moduleLength);
+    const mW = Number(moduleWidth);
+    const mC = Number(minClearance);
+    const mT = Number(maxTiltAngle);
+
+    if ((Number.isFinite(mL) && mL <= 0) || (Number.isFinite(mW) && mW <= 0)) {
+      return "Module length and width must be positive numbers.";
+    }
+    if (!Number.isFinite(mC) || mC <= 0) {
+      return "Minimum clearance must be a positive number.";
+    }
+    if (!Number.isFinite(mT) || mT <= 0 || mT >= 90) {
+      return "Max tilt angle must be between 0 and 90 degrees (exclusive).";
     }
 
     return "";
@@ -140,18 +180,24 @@ export default function Parameters() {
       trackerType,
       manufacturer,
 
-      // Shared
       maxIncline,
       minPileReveal,
       maxPileReveal,
       installationTolerance,
-
-      // ✅ New shared field
       trackerEdgeOverhang,
 
-      // XTR-only
       maxSegmentSlopeChange: trackerType === "xtr" ? maxSegmentSlopeChange : "",
       maxCumulativeSlopeChange: trackerType === "xtr" ? maxCumulativeSlopeChange : "",
+
+      moduleLength,
+      moduleWidth,
+      minClearance,
+      maxTiltAngle, // ✅ NEW
+
+      shadingEnabled,
+      azimuth: shadingEnabled ? azimuth : "",
+      zenith: shadingEnabled ? zenith : "",
+      sunAngle: shadingEnabled ? sunAngle : "",
     };
 
     try {
@@ -165,14 +211,12 @@ export default function Parameters() {
 
   return (
     <div className="pr-shell">
-      {/* Background */}
       <div className="pr-bg" aria-hidden="true">
         <img src={backgroundImage} alt="" className="pr-bgImg" />
         <div className="pr-bgOverlay" />
         <div className="pr-gridOverlay" />
       </div>
 
-      {/* Header */}
       <header className="pr-header">
         <div className="pr-headerInner">
           <div className="pr-brand">
@@ -200,7 +244,6 @@ export default function Parameters() {
         </div>
       </header>
 
-      {/* Scroll area */}
       <div className="pr-mainScroll">
         <main className="pr-main">
           {/* Hero */}
@@ -350,7 +393,6 @@ export default function Parameters() {
                 />
               </div>
 
-              {/* ✅ NEW shared parameter */}
               <div className="pr-field">
                 <label className="pr-label">Tracker edge overhang (m)</label>
                 <input
@@ -365,7 +407,6 @@ export default function Parameters() {
                 </div>
               </div>
 
-              {/* XTR-only */}
               {trackerType === "xtr" && (
                 <>
                   <div className="pr-field">
@@ -377,7 +418,6 @@ export default function Parameters() {
                       onChange={(e) => setMaxSegmentSlopeChange(e.target.value)}
                       placeholder="e.g., 1.0"
                     />
-                    <div className="pr-hint">Maximum change in slope between adjacent segments.</div>
                   </div>
 
                   <div className="pr-field">
@@ -389,9 +429,6 @@ export default function Parameters() {
                       onChange={(e) => setMaxCumulativeSlopeChange(e.target.value)}
                       placeholder="e.g., 3.0"
                     />
-                    <div className="pr-hint">
-                      Maximum cumulative slope change along the torque tube.
-                    </div>
                   </div>
                 </>
               )}
@@ -425,6 +462,124 @@ export default function Parameters() {
                 </div>
               )}
             </div>
+          </section>
+
+          {/* Module geometry */}
+          <section className="pr-card">
+            <div className="pr-cardHead">
+              <div>
+                <h2 className="pr-cardTitle">Module Geometry</h2>
+                <p className="pr-cardSub">Used for clearance checks and (optionally) shading analysis.</p>
+              </div>
+            </div>
+
+            <div className="pr-formGrid">
+              <div className="pr-field">
+                <label className="pr-label">Module length (m)</label>
+                <input
+                  className="pr-input"
+                  type="number"
+                  value={moduleLength}
+                  onChange={(e) => setModuleLength(e.target.value)}
+                  placeholder="e.g., 2.279"
+                />
+              </div>
+
+              <div className="pr-field">
+                <label className="pr-label">Module width (m)</label>
+                <input
+                  className="pr-input"
+                  type="number"
+                  value={moduleWidth}
+                  onChange={(e) => setModuleWidth(e.target.value)}
+                  placeholder="e.g., 1.134"
+                />
+              </div>
+
+              <div className="pr-field">
+                <label className="pr-label">Minimum required clearance (m)</label>
+                <input
+                  className="pr-input"
+                  type="number"
+                  value={minClearance}
+                  onChange={(e) => setMinClearance(e.target.value)}
+                  placeholder="e.g., 0.800"
+                />
+              </div>
+
+              {/* ✅ NEW: max tilt angle */}
+              <div className="pr-field">
+                <label className="pr-label">Max tilt angle from horizontal (deg)</label>
+                <input
+                  className="pr-input"
+                  type="number"
+                  value={maxTiltAngle}
+                  onChange={(e) => setMaxTiltAngle(e.target.value)}
+                  placeholder="e.g., 60"
+                />
+                <div className="pr-hint">
+                  Tilt of the module relative to the horizontal. Default is 60°. (Angle to pile becomes 90° − tilt.)
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Shading analysis */}
+          <section className="pr-card">
+            <div className="pr-cardHead pr-cardHeadTight">
+              <div>
+                <h2 className="pr-cardTitle">Shading Analysis</h2>
+                <p className="pr-cardSub">Enable this to enter sun position inputs (used in shading computations).</p>
+              </div>
+
+              <div className="pr-pill">
+                <span className="pr-pillDot" />
+                Optional
+              </div>
+            </div>
+
+            <div className="pr-toggleRow">
+              <button
+                className={`pr-toggleBtn ${!shadingEnabled ? "is-active" : ""}`}
+                onClick={() => setShadingEnabled(false)}
+                type="button"
+              >
+                Off
+              </button>
+
+              <button
+                className={`pr-toggleBtn ${shadingEnabled ? "is-active" : ""}`}
+                onClick={() => setShadingEnabled(true)}
+                type="button"
+              >
+                On
+              </button>
+            </div>
+
+            {shadingEnabled && (
+              <>
+                <div className="pr-note">
+                  Required when enabled: <strong>Azimuth, Zenith, Sun Angle</strong>
+                </div>
+
+                <div className="pr-formGrid">
+                  <div className="pr-field">
+                    <label className="pr-label">Azimuth (deg)</label>
+                    <input className="pr-input" type="number" value={azimuth} onChange={(e) => setAzimuth(e.target.value)} />
+                  </div>
+
+                  <div className="pr-field">
+                    <label className="pr-label">Zenith (deg)</label>
+                    <input className="pr-input" type="number" value={zenith} onChange={(e) => setZenith(e.target.value)} />
+                  </div>
+
+                  <div className="pr-field">
+                    <label className="pr-label">Sun angle (deg)</label>
+                    <input className="pr-input" type="number" value={sunAngle} onChange={(e) => setSunAngle(e.target.value)} />
+                  </div>
+                </div>
+              </>
+            )}
           </section>
 
           {error && <div className="pr-alert pr-alertError">{error}</div>}

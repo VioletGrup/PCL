@@ -15,7 +15,7 @@ export default function Review() {
   const [sheetName, setSheetName] = useState("");
   const [trackerType, setTrackerType] = useState("flat"); // "flat" | "xtr"
 
-  // ✅ NOW: Frame + Pole + X + Y + Z(terrain enter)
+  // ✅ NOW: Frame + Pile + X + Y + Z(terrain enter)
   const [frame, setFrame] = useState([]);
   const [pole, setPole] = useState([]);
   const [x, setX] = useState([]);
@@ -133,7 +133,7 @@ export default function Review() {
   /**
    * DEFAULT extractor (fast + reliable):
    * Uses header-name validation to find the start row.
-   * Now checks: Table, Pole, X, Y, Z terrain enter (loosely).
+   * Now checks: Table, Pile, X, Y, Z terrain enter (loosely).
    */
   async function extractColumnsDefault(bomFile, idx) {
     const { matchedSheetName, rows } = await readPilingRows(bomFile);
@@ -565,7 +565,7 @@ export default function Review() {
               <div>
                 <h2 className="rv-cardTitle">Column assignments (change if needed)</h2>
                 <p className="rv-cardSub">
-                  Default: Frame=A, Pole=C, X=D, Y=E, Z=I (Z terrain enter). Manual Apply
+                  Default: Frame=A, Pile=C, X=D, Y=E, Z=I (Z terrain enter). Manual Apply
                   ignores headers and reads the chosen columns.
                 </p>
               </div>
@@ -588,7 +588,7 @@ export default function Review() {
               </div>
 
               <div className="rv-field">
-                <label className="rv-label">Pole</label>
+                <label className="rv-label">Pile</label>
                 <input
                   className="rv-input"
                   value={poleCol}
@@ -661,7 +661,7 @@ export default function Review() {
                   <thead>
                     <tr>
                       <th>Frame ({frameCol})</th>
-                      <th>Pole ({poleCol})</th>
+                      <th>Pile ({poleCol})</th>
                       <th>X ({xCol})</th>
                       <th>Y ({yCol})</th>
                       <th>Z ({zCol})</th>

@@ -12,6 +12,7 @@ import GradingTool from "./pages/GradingTool";
 import Parameters from "./pages/Parameters";
 import RunAnalysis from "./pages/RunAnalysis";
 import FramePage from "./pages/FramePage";
+import PileView from "./pages/PileView";
 
 export default function App() {
   /**
@@ -246,6 +247,7 @@ export default function App() {
         <Route path="/parameters" element={<Parameters />} />
         <Route path="/run-analysis" element={<RunAnalysis />} />
         <Route path="/frame/:frameId" element={<FramePage />} />
+        <Route path="/pile/:pileId" element={<PileView />} />
       </Routes>
     </BrowserRouter>
   );
