@@ -43,7 +43,9 @@ def load_project_from_excel(
     pile_in_tracker_col = df.columns[4]
 
     # Keep only rows that have the required fields
-    df = df.dropna(subset=[northing_col, easting_col, elevation_col, pile_in_tracker_col])
+    df = df.dropna(
+        subset=[northing_col, easting_col, elevation_col, pile_in_tracker_col]
+    )
 
     # Coerce numeric (and drop any non-numeric leftovers)
     df[northing_col] = pd.to_numeric(df[northing_col], errors="coerce")
@@ -51,7 +53,9 @@ def load_project_from_excel(
     df[elevation_col] = pd.to_numeric(df[elevation_col], errors="coerce")
     df[pile_in_tracker_col] = pd.to_numeric(df[pile_in_tracker_col], errors="coerce")
 
-    df = df.dropna(subset=[northing_col, easting_col, elevation_col, pile_in_tracker_col])
+    df = df.dropna(
+        subset=[northing_col, easting_col, elevation_col, pile_in_tracker_col]
+    )
 
     project = Project(
         name=project_name,
@@ -122,7 +126,7 @@ def to_excel(project: Project) -> None:
 
     df = pd.DataFrame(rows)
 
-    output_path = "final_pile_elevations_for_tf.xlsx"
+    output_path = "PCL/final_pile_elevations_for_tf.xlsx"
     df.to_excel(output_path, index=False)
 
 

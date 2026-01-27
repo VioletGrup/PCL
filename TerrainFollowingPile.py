@@ -27,3 +27,13 @@ class TerrainFollowingPile(BasePile):
         if self.pile_in_tracker >= len(tracker.piles):
             return -1  # No outgoing segment for last pile
         return self.pile_in_tracker
+
+    def degree_break(self, tracker: TerrainFollowingTracker) -> float:
+        """Angle difference between adjacent torque tubes (deg)."""
+        in_id = self.get_incoming_segment_id()
+        out_id = self.get_outgoing_segment_id(tracker)
+        if in_id == -1 or out_id == -1:
+            return 0.0
+        incoming = tracker.get_segment_by_id(in_id)
+        outgoing = tracker.get_segment_by_id(out_id)
+        return abs(outgoing.segment_angle() - incoming.segment_angle())

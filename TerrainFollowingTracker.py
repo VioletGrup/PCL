@@ -69,7 +69,7 @@ class TerrainFollowingTracker(BaseTracker):
         south_cum = 0.0
 
         for seg in self.segments:
-            abs_deg = abs(seg.degree_of_deflection())
+            abs_deg = abs(seg.segment_angle())
 
             # Per-segment violations
             if math.isinf(abs_deg) or abs_deg > max_segment_deflection_deg:
