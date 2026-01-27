@@ -394,67 +394,56 @@ def slope_correction(
         #     break
 
 
-def alteration3(
-    project: Project,
-    tracker: TerrainFollowingTracker,
-) -> None:
+def alteration3(project: Project, tracker: TerrainFollowingTracker) -> float:
     """
-    Moves all the piles in the tracker based on the average distance of piles currently outside
-    the grading window. Only applied to trackers that have atleast one pile in violation.
+    Excel-style global shift:
+    - average violation over violating piles only
+    - clamp shift so endpoints stay within their windows
+    Returns applied adjustment.
+    """
+    total = 0.0
+    count = 0
 
-    Parameters
-    ----------
-    tracker : TerrainFollowingTracker
-        The tracker containing the piles to be adjusted.
-    violating_piles : list[dict[str, float]]
-        List of piles that are still outside of the grading window after previous alterations.
-    """
-    # determine the average distance that piles are outside the grading window
-    total_distance = 0.0
     for pile in tracker.piles:
-        if pile.height > pile.true_max_height(project):
-            dist_to_window = pile.height - pile.true_max_height(project)
-        elif pile.height < pile.true_min_height(project):
-            dist_to_window = pile.height - pile.true_min_height(project)
-        else:
-            dist_to_window = 0
-        total_distance += dist_to_window
-    average_distance = total_distance / tracker.pole_count
-    # if the average distance is larger than half the grading window, limit the adjustment
-    half_window = (
-        tracker.get_first().true_max_height(project) + tracker.get_first().true_min_height(project)
-    ) / 2
-    optimal_adjustment = max(-half_window, min(half_window, average_distance))
+        hi = pile.true_max_height(project)
+        lo = pile.true_min_height(project)
+        if pile.height > hi:
+            total += pile.height - hi
+            count += 1
+        elif pile.height < lo:
+            total += pile.height - lo
+            count += 1
 
-    # double check to make sure the adjustment wont put the first and last trackers out of the
-    # grading window
+    if count == 0:
+        return 0.0
+
+    avg = total / count  # ✅ only violators
+
     first = tracker.get_first()
     last = tracker.get_last()
 
-    first_prior_height = first.height
-    last_prior_height = last.height
+    # ✅ true half-window
+    half_window = (first.true_max_height(project) - first.true_min_height(project)) / 2.0
+    optimal = max(-half_window, min(half_window, avg))
 
-    # Allowed adjustment range from endpoints:
-    # adjustment in [h - h_max, h - h_min]
-    a0_min = first_prior_height - first.true_max_height(project)
-    a0_max = first_prior_height - first.true_min_height(project)
-
-    a1_min = last_prior_height - last.true_max_height(project)
-    a1_max = last_prior_height - last.true_min_height(project)
+    # ✅ clamp so endpoints stay in window after shifting
+    a0_min = first.height - first.true_max_height(project)
+    a0_max = first.height - first.true_min_height(project)
+    a1_min = last.height - last.true_max_height(project)
+    a1_max = last.height - last.true_min_height(project)
 
     allowed_min = max(a0_min, a1_min)
     allowed_max = min(a0_max, a1_max)
 
-    # If the windows are inconsistent (shouldn't happen), fall back to no adjustment
     if allowed_min > allowed_max:
         adjustment = 0.0
     else:
-        # Might need to change the adjustment if the previously calculated puts the first and last
-        # piles out of the window
-        adjustment = max(allowed_min, min(allowed_max, optimal_adjustment))
-    # adjust all piles in the tracker by the average distance
+        adjustment = max(allowed_min, min(allowed_max, optimal))
+
     for pile in tracker.piles:
         pile.height -= adjustment
+
+    return adjustment
 
 
 def verify_and_fix_deflections(tracker: TerrainFollowingTracker, project: Project) -> None:

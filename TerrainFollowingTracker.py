@@ -23,6 +23,7 @@ class TerrainFollowingTracker(BaseTracker):
     def create_segments(self) -> None:
         """Create segments between consecutive piles."""
         self.segments = []
+        self.piles.sort(key=lambda p: p.pile_in_tracker)
         for i in range(len(self.piles) - 1):
             segment = Segment(
                 start_pile=self.piles[i], end_pile=self.piles[i + 1], segment_id=i + 1
