@@ -277,17 +277,17 @@ def slope_correction(
     3. Iteratively correct cumulative deflections
     """
 
-    # Step 1: Propagate adjustments from alteration1
-    for p in reversed(violating_piles):
-        this_id = p["pile_in_tracker"]
-        next_id = this_id + 1
-        if next_id > tracker.pole_count:
-            continue
+    # # Step 1: Propagate adjustments from alteration1
+    # for p in reversed(violating_piles):
+    #     this_id = p["pile_in_tracker"]
+    #     next_id = this_id + 1
+    #     if next_id > tracker.pole_count:
+    #         continue
 
-        this_pile = tracker.get_pile_in_tracker(this_id)
-        next_pile = tracker.get_pile_in_tracker(next_id)
-        adjustment = this_pile.height - target_heights[this_id - 1]
-        next_pile.height += adjustment
+    #     this_pile = tracker.get_pile_in_tracker(this_id)
+    #     next_pile = tracker.get_pile_in_tracker(next_id)
+    #     adjustment = this_pile.height - target_heights[this_id - 1]
+    #     next_pile.height += adjustment
 
     if not tracker.segments:
         tracker.create_segments()
