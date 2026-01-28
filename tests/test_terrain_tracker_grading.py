@@ -1024,12 +1024,6 @@ class TestMain:
             for p in tracker.piles:
                 assert p.final_elevation is not None
 
-
-# =============================================================================
-# TEST WARNINGS
-# =============================================================================
-
-
 class TestWarnings:
     """Tests for warning conditions."""
 
