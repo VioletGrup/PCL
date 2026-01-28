@@ -5,10 +5,10 @@ from typing import Dict
 
 import pandas as pd
 
-from .BasePile import BasePile
-from .BaseTracker import BaseTracker
-from .Project import Project
-from .ProjectConstraints import ProjectConstraints
+from BasePile import BasePile
+from BaseTracker import BaseTracker
+from Project import Project
+from ProjectConstraints import ProjectConstraints
 
 
 def load_project_from_excel(
@@ -138,7 +138,7 @@ def to_excel(project: Project) -> None:
 #         max_reveal_height=1.675,
 #         pile_install_tolerance=0.0,
 #         max_incline=0.15,
-#         target_height_percantage=0.5,
+#         target_height_percentage=0.5,
 #         max_angle_rotation=0.0,
 #     )
 

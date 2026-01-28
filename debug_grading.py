@@ -17,7 +17,7 @@ def test_grading():
         max_reveal_height=3.2,
         pile_install_tolerance=0.2,
         max_incline=0.15,
-        target_height_percantage=0.5,
+        target_height_percentage=0.5,
         max_angle_rotation=0.0,
     )
     project = Project(name="Debug", project_type="standard", constraints=constraints)

@@ -60,7 +60,7 @@ class ConstraintsInput(BaseModel):
     pile_install_tolerance: float  # m
     max_incline: float  # % (frontend provides %)
 
-    target_height_percantage: float = 0.5
+    target_height_percentage: float = 0.5
     max_angle_rotation: float = 0.0
 
     # ✅ Accept tracker_edge_overhang from frontend
@@ -209,7 +209,7 @@ async def grade_single_tracker(request: GradingRequest):
             max_reveal_height=request.constraints.max_reveal_height,
             pile_install_tolerance=request.constraints.pile_install_tolerance,
             max_incline=request.constraints.max_incline / 100.0,
-            target_height_percantage=request.constraints.target_height_percantage,
+            target_height_percentage=request.constraints.target_height_percentage,
             max_angle_rotation=request.constraints.max_angle_rotation,
             max_segment_deflection_deg=request.constraints.max_segment_deflection_deg,
             max_cumulative_deflection_deg=request.constraints.max_cumulative_deflection_deg,
@@ -336,7 +336,7 @@ async def grade_project(request: ProjectGradingRequest):
             pile_install_tolerance=request.constraints.pile_install_tolerance,
             max_incline=request.constraints.max_incline / 100.0,
             edge_overhang=request.constraints.edge_overhang,
-            target_height_percantage=request.constraints.target_height_percantage,
+            target_height_percentage=request.constraints.target_height_percentage,
             max_angle_rotation=request.constraints.max_angle_rotation,
             max_segment_deflection_deg=request.constraints.max_segment_deflection_deg,
             max_cumulative_deflection_deg=request.constraints.max_cumulative_deflection_deg,

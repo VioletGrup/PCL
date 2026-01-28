@@ -265,7 +265,7 @@ export default function RunAnalysis() {
           max_reveal_height: parseFloat(params.maxPileReveal),
           pile_install_tolerance: parseFloat(params.installationTolerance),
           max_incline: parseFloat(params.maxIncline),
-          target_height_percantage: 0.5,
+          target_height_percentage: 0.5,
           max_angle_rotation: 0.0,
 
           tracker_edge_overhang: params.trackerEdgeOverhang ? parseFloat(params.trackerEdgeOverhang) : 0.0,
@@ -683,14 +683,14 @@ export default function RunAnalysis() {
                         size: 4,
                         color: gradingResults
                           ? xNum.map((_, i) => {
-                              const cd = customData[i];
-                              const tid = parseInt(cd.frame);
-                              const status = trackerStatusMap.get(tid);
+                            const cd = customData[i];
+                            const tid = parseInt(cd.frame);
+                            const status = trackerStatusMap.get(tid);
 
-                              if (status === "violation") return "#FF4D4D";
-                              if (status === "graded") return "#FF9800";
-                              return "#00C853";
-                            })
+                            if (status === "violation") return "#FF4D4D";
+                            if (status === "graded") return "#FF9800";
+                            return "#00C853";
+                          })
                           : "#FFD400",
                         opacity: 0.85,
                       },

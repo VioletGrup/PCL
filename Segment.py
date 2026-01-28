@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from .TerrainFollowingPile import TerrainFollowingPile
+from TerrainFollowingPile import TerrainFollowingPile
 
 
 @dataclass

@@ -25,8 +25,9 @@ class TestNumericalPrecision:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Precision_Test", project_type="standard", constraints=constraints)
 
@@ -163,8 +164,9 @@ class TestRoundingBehavior:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Rounding_Test", project_type="standard", constraints=constraints)
 

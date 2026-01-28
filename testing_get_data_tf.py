@@ -5,10 +5,10 @@ from typing import Dict
 
 import pandas as pd
 
-from .Project import Project
-from .ProjectConstraints import ProjectConstraints
-from .TerrainFollowingPile import TerrainFollowingPile
-from .TerrainFollowingTracker import TerrainFollowingTracker
+from Project import Project
+from ProjectConstraints import ProjectConstraints
+from TerrainFollowingPile import TerrainFollowingPile
+from TerrainFollowingTracker import TerrainFollowingTracker
 
 
 def load_project_from_excel(
@@ -119,7 +119,7 @@ def load_project_from_excel(
     return project
 
 
-def to_excel(project: Project, output_path: str = "PCL/final_pile_elevations_for_tf.xlsx") -> None:
+def to_excel(project: Project, output_path: str = "final_pile_elevations_for_tf.xlsx") -> None:
     rows = []
 
     for tracker in project.trackers:
