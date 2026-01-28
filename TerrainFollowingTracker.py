@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-from dataclasses import dataclass, field
 import math
+from dataclasses import dataclass, field
 from typing import List
 
 from .BaseTracker import BaseTracker
@@ -13,8 +13,11 @@ from .TerrainFollowingPile import TerrainFollowingPile
 class TerrainFollowingTracker(BaseTracker):
     piles: List[TerrainFollowingPile] = field(default_factory=list)
     segments: List[Segment] = field(default_factory=list)
+
+    # Summary of Final Metrics after grading
     north_wing_deflection: float = field(init=False, default=0.0)
     south_wing_deflection: float = field(init=False, default=0.0)
+    max_tracker_degree_break: float = field(init=False, default=0.0)
 
     def add_pile(self, pile: TerrainFollowingPile) -> None:
         """Add a pile to the tracker."""
@@ -131,3 +134,72 @@ class TerrainFollowingTracker(BaseTracker):
             return 0.0
 
         return max(segment.length() for segment in self.segments)
+
+    def set_final_wing_deflections(self) -> tuple[float, float]:
+        """
+        Compute and store final cumulative (absolute) wing deflections in degrees.
+        Uses the current tracker geometry (segment angles).
+
+        Returns
+        -------
+        (north_wing_deflection, south_wing_deflection)
+        """
+        if not self.segments:
+            self.create_segments()
+
+        centre_id = self.get_centre_pile().pile_in_tracker
+
+        north_cum = 0.0
+        south_cum = 0.0
+
+        for seg in self.segments:
+            abs_deg = abs(seg.segment_angle())
+
+            a = seg.start_pile.pile_in_tracker
+            b = seg.end_pile.pile_in_tracker
+            lo, hi = (a, b) if a <= b else (b, a)
+
+            if hi <= centre_id:
+                south_cum += abs_deg
+            elif lo > centre_id:
+                north_cum += abs_deg
+            else:
+                # defensive: segment crossing centre (shouldn't happen for consecutive piles)
+                half = 0.5 * abs_deg
+                south_cum += half
+                north_cum += half
+
+        self.north_wing_deflection = north_cum
+        self.south_wing_deflection = south_cum
+        return north_cum, south_cum
+
+    def set_final_tracker_degree_break(self) -> float:
+        """
+        Compute and store the maximum degree break across all interior piles.
+        Requires piles + segments to represent the final geometry.
+
+        Returns
+        -------
+        float
+            max_tracker_degree_break (deg)
+        """
+        if not self.segments:
+            self.create_segments()
+
+        max_break = 0.0
+        # interior piles only
+        for pid in range(2, self.pole_count):
+            pile = self.get_pile_in_tracker(pid)
+            b = pile.degree_break(self)
+            if b > max_break:
+                max_break = b
+
+        self.max_tracker_degree_break = max_break
+        return max_break
+
+    def set_final_deflection_metrics(self) -> None:
+        """
+        Convenience wrapper: compute all final deflection metrics for this tracker.
+        """
+        self.set_final_wing_deflections()
+        self.set_final_tracker_degree_break()

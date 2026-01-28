@@ -26,7 +26,8 @@ class BasePile:
     pile_id: float
         Unique id for pile in a project. Named as `tracker_id`.`pile_in_tracker`
     flooding_allowance: float
-        Flooding allowance required at this coordinate that that the solar panel must clear when at the maxiumum angle
+        Flooding allowance required at this coordinate that that the solar panel must clear when at
+        the maxiumum angle
 
     """
 
@@ -42,12 +43,8 @@ class BasePile:
     )  # elevation of the top of the pile, uesd during calcs
     current_elevation: float = field(init=False)
     final_elevation: float = field(init=False)  # final Z coordinate
-    pile_revealed: float = field(
-        init=False, default=0.0
-    )  # height of pile revealed above ground
-    total_height: float = field(
-        init=False, default=0.0
-    )  # final Z coordinate height of the pile
+    pile_revealed: float = field(init=False, default=0.0)  # height of pile revealed above ground
+    total_height: float = field(init=False, default=0.0)  # final Z coordinate height of the pile
 
     def __post_init__(self) -> None:
         """
