@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from Project import Project
 from TrackerABC import TrackerABC
 
+from ..ProjectConstraints import ProjectConstraints, ShadingConstraints
+
 
 @dataclass
 class EastWest:
@@ -16,6 +18,34 @@ class EastWest:
     sun_angle: float  # degrees
     project: Project
     pitch: float
+
+    constraints: ShadingConstraints
+
+    def __init__(self, constraints: ProjectConstraints) -> None:
+        if not constraints.with_shading:
+            raise ValueError("EastWest shading analysis requires with_shading=True.")
+        assert isinstance(constraints, ShadingConstraints)
+        self.constraints = constraints
+
+    @property
+    def azimuth(self) -> float:
+        return self.constraints.azimuth_deg
+
+    @property
+    def zenith(self) -> float:
+        return self.constraints.zenith_degzenith
+
+    @property
+    def tracker_axis_angle_max(self) -> float:
+        return self.constraints.tracker_axis_angle_max
+
+    @property
+    def sun_angle(self) -> float:
+        return self.constraints.sun_angle_deg
+
+    @property
+    def pitch(self) -> float:
+        return self.constraints.pitch
 
     def max_idk(self, east_tracker: TrackerABC, west_tracker: TrackerABC) -> float:
         max_shadow_length = 1000 / (math.tan(self.sun_angle))
