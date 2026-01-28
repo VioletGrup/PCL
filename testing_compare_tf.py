@@ -135,12 +135,12 @@ def compare_results() -> None:
     # -------------------------------
     EXCEL_A = "final_pile_elevations_for_tf.xlsx"
     SHEET_A = "Sheet1"
-    COL_A = "I"
+    COL_A = "G"
     START_ROW_A = 2
 
     EXCEL_B = "XTR.xlsx"
     SHEET_B = "Calculations"
-    COL_B = "AR"
+    COL_B = "CP"
     START_ROW_B = 9
 
     compare_two_excel_columns_values_only(

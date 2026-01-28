@@ -3,11 +3,11 @@
 from dataclasses import dataclass
 from typing import Dict
 
-from BasePile import BasePile
-from BaseTracker import BaseTracker
-from Project import Project
-from ProjectConstraints import ProjectConstraints
-from testing_get_data import load_project_from_excel, to_excel
+from .BasePile import BasePile
+from .BaseTracker import BaseTracker
+from .Project import Project
+from .ProjectConstraints import ProjectConstraints
+from .testing_get_data import load_project_from_excel, to_excel
 
 
 @dataclass(frozen=True)
@@ -46,7 +46,9 @@ def _y_intercept(slope: float, x: float, y: float) -> float:
     return y - slope * x
 
 
-def _window_by_pile_in_tracker(window: list[dict[str, float]]) -> Dict[int, tuple[float, float]]:
+def _window_by_pile_in_tracker(
+    window: list[dict[str, float]],
+) -> Dict[int, tuple[float, float]]:
     """
     Convert grading window data into a lookup dictionary.
 
@@ -58,7 +60,7 @@ def _window_by_pile_in_tracker(window: list[dict[str, float]]) -> Dict[int, tupl
     Returns
     -------
     Dict[int, tuple[float, float]]
-        Dictionary mapping pile_id to (min_height, max_height).
+        Dictionary mapping pile_in_tracker to (min_height, max_height).
     """
     out: Dict[int, tuple[float, float]] = {}
     for row in window:
@@ -105,7 +107,9 @@ def _total_grading_cost(violating_piles: list[dict[str, float]]) -> float:
     return sum(abs(v["below_by"]) + v["above_by"] for v in violating_piles)
 
 
-def _apply_line_to_tracker(tracker: BaseTracker, slope: float, y_intercept: float) -> None:
+def _apply_line_to_tracker(
+    tracker: BaseTracker, slope: float, y_intercept: float
+) -> None:
     """
     Loops through tracker and sets the height to fit the line
 
@@ -701,7 +705,8 @@ def main(project: Project) -> None:
 
         if piles_outside:
             window_half = (
-                piles_outside[0]["grading_window_max"] - piles_outside[0]["grading_window_min"]
+                piles_outside[0]["grading_window_max"]
+                - piles_outside[0]["grading_window_min"]
             ) / 2.0
 
             intercept_span = max(1e-6, 4.0 * window_half)

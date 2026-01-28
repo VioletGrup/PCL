@@ -10,12 +10,12 @@ from pydantic import BaseModel, Field
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
 import flatTrackerGrading
-from Project import Project
-from ProjectConstraints import ProjectConstraints
 
 # Base (flat) classes
 from BasePile import BasePile
 from BaseTracker import BaseTracker
+from Project import Project
+from ProjectConstraints import ProjectConstraints
 
 # XTR / terrain-following classes
 try:
@@ -265,7 +265,9 @@ async def grade_single_tracker(request: GradingRequest):
             else:
                 total_fill += abs(cut_fill)
 
-            if pile.pile_revealed < (min_reveal_m + pile.flooding_allowance + tolerance / 2 - 0.0001):
+            if pile.pile_revealed < (
+                min_reveal_m + pile.flooding_allowance + tolerance / 2 - 0.0001
+            ):
                 violations.append(
                     {
                         "pile_id": pile.pile_id,
@@ -397,7 +399,9 @@ async def grade_project(request: ProjectGradingRequest):
                 else:
                     total_fill += abs(cut_fill)
 
-                if pile.pile_revealed < (min_reveal_m + pile.flooding_allowance + tolerance / 2 - 0.0001):
+                if pile.pile_revealed < (
+                    min_reveal_m + pile.flooding_allowance + tolerance / 2 - 0.0001
+                ):
                     violations.append(
                         {
                             "pile_id": pile.pile_id,
