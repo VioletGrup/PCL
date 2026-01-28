@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from Project import Project
+    from .Project import Project
 
 
 @dataclass
@@ -26,7 +26,8 @@ class BasePile:
     pile_id: float
         Unique id for pile in a project. Named as `tracker_id`.`pile_in_tracker`
     flooding_allowance: float
-        Flooding allowance required at this coordinate that that the solar panel must clear when at the maxiumum angle
+        Flooding allowance required at this coordinate that that the solar panel must clear when at
+        the maxiumum angle
 
     """
 

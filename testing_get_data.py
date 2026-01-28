@@ -5,10 +5,10 @@ from typing import Dict
 
 import pandas as pd
 
-from BasePile import BasePile
-from BaseTracker import BaseTracker
-from Project import Project
-from ProjectConstraints import ProjectConstraints
+from .BasePile import BasePile
+from .BaseTracker import BaseTracker
+from .Project import Project
+from .ProjectConstraints import ProjectConstraints
 
 
 def load_project_from_excel(
@@ -49,7 +49,13 @@ def load_project_from_excel(
 
     # Drop rows missing essential fields (common with blank separators)
     df = df.dropna(
-        subset=[tracker_col, pile_in_tracker_col, easting_col, northing_col, elevation_col]
+        subset=[
+            tracker_col,
+            pile_in_tracker_col,
+            easting_col,
+            northing_col,
+            elevation_col,
+        ]
     )
 
     project = Project(

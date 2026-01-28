@@ -1,8 +1,7 @@
+import math
 from typing import Iterable
 
 from Segment import Segment
-
-import math
 
 
 def validate_tracker_deflections(

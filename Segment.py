@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from TerrainFollowingPile import TerrainFollowingPile
+from .TerrainFollowingPile import TerrainFollowingPile
 
 
 @dataclass
@@ -35,9 +35,10 @@ class Segment:
         higher than the last pile."""
         return self.start_pile.height - self.end_pile.height
 
-    def degree_of_deflection(self) -> float:
-        """Angle of the segment relative to horizontal, in degrees."""
-        s = self.slope()
-        if math.isinf(s):
+    def segment_angle(self) -> float:
+        """Absolute tube angle relative to horizontal (deg)."""
+        run = self.length()
+        if run == 0:
             return float("inf")
-        return math.degrees(math.atan(s))
+        rise = self.end_pile.height - self.start_pile.height
+        return math.degrees(math.atan2(rise, run))  # atan2 is a bit safer
