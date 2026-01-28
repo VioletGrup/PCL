@@ -1,3 +1,4 @@
+// FramePage.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams, useNavigate } from "react-router-dom";
 import Plot from "react-plotly.js";
@@ -14,6 +15,9 @@ export default function FramePage() {
   const [grading, setGrading] = useState(state?.trackerResults || null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [hiddenTraces, setHiddenTraces] = useState(new Set());
+
+  // ✅ NEW: jump to pile (by pile_in_tracker, not pile_id)
+  const [pileJump, setPileJump] = useState("");
 
   const toggleTrace = (name) => {
     setHiddenTraces((prev) => {
@@ -35,6 +39,36 @@ export default function FramePage() {
   useEffect(() => {
     console.log("FramePage mounted. State:", state);
   }, [state]);
+
+  const handlePileJump = (e) => {
+    e.preventDefault();
+
+    // Accept "09", "9", "P09", "p9"
+    const raw = String(pileJump || "").trim().replace(/^p/i, "");
+    if (!raw) return;
+
+    const pileInTrackerNum = Number(raw);
+    if (!Number.isFinite(pileInTrackerNum) || !Number.isInteger(pileInTrackerNum) || pileInTrackerNum <= 0) return;
+
+    // Find pile by pile_in_tracker within THIS tracker results
+    const pileObj =
+      grading?.piles?.find((p) => Number(p.pile_in_tracker) === pileInTrackerNum) || null;
+
+    if (!pileObj) return;
+
+    // Find matching violation (PileView reads state.violation)
+    const violationObj =
+      grading?.violations?.find((v) => Number(v.pile_id) === Number(pileObj.pile_id)) || null;
+
+    // ✅ IMPORTANT: your app route is /pile/:pileId (e.g. /pile/12.03)
+    navigate(`/pile/${encodeURIComponent(String(pileObj.pile_id))}`, {
+      state: {
+        ...state,
+        pile: pileObj,
+        violation: violationObj,
+      },
+    });
+  };
 
   // Prepare plot data (UNCHANGED)
   const plotData = useMemo(() => {
@@ -123,11 +157,7 @@ export default function FramePage() {
           </div>
 
           <div className="fp-headerActions">
-            <Link
-              to="/run-analysis"
-              state={{ gradingResults: state?.gradingResults }}
-              className="fp-navLink"
-            >
+            <Link to="/run-analysis" state={{ gradingResults: state?.gradingResults }} className="fp-navLink">
               ← Back to Plot
             </Link>
 
@@ -199,9 +229,7 @@ export default function FramePage() {
             <div className="fp-plotHead">
               <div>
                 <div className="fp-plotTitle">Tracker {frameId} — Side View Profile</div>
-                <div className="fp-plotSub">
-                  Use the legend (right) to hide/show overlays. Drag to pan, scroll to zoom.
-                </div>
+                <div className="fp-plotSub">Use the legend (right) to hide/show overlays. Drag to pan, scroll to zoom.</div>
               </div>
 
               <div className="fp-miniBadges">
@@ -402,6 +430,30 @@ export default function FramePage() {
 
           {/* Legend sidebar (same toggling logic as your code) */}
           <aside className={`fp-sidebar ${sidebarOpen ? "open" : "closed"}`}>
+            {/* ✅ NEW: jump box */}
+            <form className="fp-pileJump" onSubmit={handlePileJump}>
+              <div className="fp-pileJumpLabel">Go to pile (in Tracker {frameId})</div>
+              <div className="fp-pileJumpRow">
+                <div className="fp-pileJumpPrefix" aria-hidden="true">
+                  {String(frameId)}.
+                </div>
+                <input
+                  className="fp-pileJumpInput"
+                  value={pileJump}
+                  onChange={(e) => setPileJump(e.target.value)}
+                  inputMode="numeric"
+                  placeholder="03"
+                  aria-label="Enter pile number in tracker"
+                />
+                <button className="fp-pileJumpBtn" type="submit">
+                  Go
+                </button>
+              </div>
+              <div className="fp-pileJumpHint">
+                Example: <strong>{String(frameId)}.03</strong> means pile <strong>3</strong> in this tracker.
+              </div>
+            </form>
+
             <div className="fp-sidebarHeader">
               <div className="fp-sidebarTitle">Legend</div>
               <div className="fp-sidebarHint">Click items to hide/show traces.</div>
@@ -520,17 +572,13 @@ export default function FramePage() {
                 </div>
               </div>
 
-              <div className="fp-sidebarFooter">
-                Tip: You can also zoom/pan directly on the plot for detailed inspection.
-              </div>
+              <div className="fp-sidebarFooter">Tip: You can also zoom/pan directly on the plot for detailed inspection.</div>
             </div>
           </aside>
         </div>
       </div>
 
-      <footer className="fp-footer">
-        PCL Earthworks Tool • Run Analysis → Frame Profile
-      </footer>
+      <footer className="fp-footer">PCL Earthworks Tool • Run Analysis → Frame Profile</footer>
     </div>
   );
 }

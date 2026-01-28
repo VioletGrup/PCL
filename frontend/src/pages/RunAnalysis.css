@@ -6,7 +6,6 @@
  * Data dictionary: N/A
  */
 
-/* ---------- Theme vars ---------- */
 :root {
   --pcl-green: #0b5b3f;
   --pcl-green-dark: #064331;
@@ -45,7 +44,6 @@
   --grid-light: rgba(2, 6, 23, 0.08);
 }
 
-/* ---------- Shell + Background ---------- */
 .ra-shell {
   min-height: 100vh;
   position: relative;
@@ -89,7 +87,7 @@
   );
 }
 
-/* ---------- Header ---------- */
+/* Header */
 .ra-header {
   position: sticky;
   top: 0;
@@ -179,7 +177,7 @@
   color: var(--pcl-gold);
 }
 
-/* ---------- Buttons ---------- */
+/* Buttons */
 .ra-btn {
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.06);
@@ -223,6 +221,18 @@
   background: rgba(34, 197, 94, 0.18);
 }
 
+/* ✅ NEW: Toggle look */
+.ra-btnToggle {
+  border: 1px solid rgba(242, 195, 0, 0.28);
+  background: rgba(242, 195, 0, 0.08);
+}
+
+.ra-btnToggle.isOn {
+  border-color: rgba(242, 195, 0, 0.60);
+  background: linear-gradient(135deg, rgba(242, 195, 0, 0.22) 0%, rgba(255, 216, 74, 0.14) 100%);
+  box-shadow: 0 12px 30px rgba(242, 195, 0, 0.16);
+}
+
 .ra-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -230,7 +240,7 @@
   box-shadow: none !important;
 }
 
-/* ---------- Main container ---------- */
+/* Main container */
 .ra-main {
   position: relative;
   z-index: 1;
@@ -289,7 +299,14 @@
   color: rgba(255, 255, 255, 0.92);
 }
 
-/* ---------- Workspace layout ---------- */
+/* ✅ NEW warning */
+.ra-alertWarn {
+  background: rgba(242, 195, 0, 0.16);
+  border-color: rgba(242, 195, 0, 0.36);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Workspace layout */
 .ra-workspace {
   position: relative;
   display: grid;
@@ -326,7 +343,7 @@
   color: var(--pcl-gold);
 }
 
-/* ---------- Sidebar ---------- */
+/* Sidebar */
 .ra-sidebar {
   background: var(--glass-bg-strong);
   border: 1px solid var(--glass-border);
@@ -407,7 +424,6 @@
   color: var(--pcl-gold);
 }
 
-/* Sidebar sections */
 .ra-sidebarSection {
   padding: 12px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
@@ -490,18 +506,9 @@
   background: rgba(255, 255, 255, 0.35);
 }
 
-/* Status colors */
-.ra-sidebarItem.ok .ra-itemDot {
-  background: rgba(34, 197, 94, 0.95);
-}
-
-.ra-sidebarItem.graded .ra-itemDot {
-  background: rgba(255, 152, 0, 0.95);
-}
-
-.ra-sidebarItem.violation .ra-itemDot {
-  background: rgba(255, 77, 77, 0.98);
-}
+.ra-sidebarItem.ok .ra-itemDot { background: rgba(34, 197, 94, 0.95); }
+.ra-sidebarItem.graded .ra-itemDot { background: rgba(255, 152, 0, 0.95); }
+.ra-sidebarItem.violation .ra-itemDot { background: rgba(255, 77, 77, 0.98); }
 
 .ra-noResults {
   font-size: 12px;
@@ -515,12 +522,11 @@
   color: var(--text-secondary);
 }
 
-/* ---------- Plot card (SOLID WHITE) ---------- */
+/* Plot card */
 .ra-plotCard {
   border-radius: 20px;
   border: 1px solid var(--glass-border);
-  background: #ffffff;           /* ✅ SOLID WHITE */
-  backdrop-filter: none;
+  background: #ffffff;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
   min-height: 520px;
@@ -528,7 +534,6 @@
   flex-direction: column;
 }
 
-/* IMPORTANT: make ALL header text dark */
 .ra-plotHead {
   padding: 16px 16px 12px;
   border-bottom: 1px solid var(--line-light);
@@ -539,9 +544,7 @@
   gap: 12px;
 }
 
-.ra-plotHead * {
-  color: var(--ink);
-}
+.ra-plotHead * { color: var(--ink); }
 
 .ra-plotTitle {
   font-weight: 950;
@@ -557,11 +560,8 @@
   color: var(--ink-muted);
 }
 
-.ra-plotSub strong {
-  color: var(--ink);
-}
+.ra-plotSub strong { color: var(--ink); }
 
-/* badges: dark readable */
 .ra-miniBadge {
   font-size: 11px;
   font-weight: 950;
@@ -574,20 +574,9 @@
   background: rgba(2, 6, 23, 0.03);
 }
 
-.ra-miniBadge.ok {
-  border-color: rgba(34, 197, 94, 0.25);
-  background: rgba(34, 197, 94, 0.12);
-}
-
-.ra-miniBadge.warn {
-  border-color: rgba(255, 152, 0, 0.25);
-  background: rgba(255, 152, 0, 0.14);
-}
-
-.ra-miniBadge.danger {
-  border-color: rgba(255, 77, 77, 0.25);
-  background: rgba(255, 77, 77, 0.14);
-}
+.ra-miniBadge.ok { border-color: rgba(34, 197, 94, 0.25); background: rgba(34, 197, 94, 0.12); }
+.ra-miniBadge.warn { border-color: rgba(255, 152, 0, 0.25); background: rgba(255, 152, 0, 0.14); }
+.ra-miniBadge.danger { border-color: rgba(255, 77, 77, 0.25); background: rgba(255, 77, 77, 0.14); }
 
 .ra-plotBadges {
   display: inline-flex;
@@ -604,33 +593,10 @@
   background: #ffffff;
 }
 
-/* --- Plotly readability overrides INSIDE the white plot card --- */
-.ra-plotCard .js-plotly-plot,
-.ra-plotCard .plot-container {
-  color: var(--ink) !important;
-}
+/* Plotly readability overrides */
+.ra-plotCard .main-svg text { fill: var(--ink) !important; }
+.ra-plotCard .gridlayer path { stroke: var(--grid-light) !important; }
 
-.ra-plotCard .main-svg text {
-  fill: var(--ink) !important; /* ticks + axis labels + hover text inside svg */
-}
-
-.ra-plotCard .xtitle text,
-.ra-plotCard .ytitle text {
-  fill: var(--ink) !important;
-  font-weight: 900 !important;
-}
-
-.ra-plotCard .gridlayer path {
-  stroke: var(--grid-light) !important; /* grid lines */
-}
-
-.ra-plotCard .zerolinelayer path,
-.ra-plotCard .xaxislayer-above path,
-.ra-plotCard .yaxislayer-above path {
-  stroke: rgba(2, 6, 23, 0.18) !important; /* axis lines */
-}
-
-/* Hover label styling */
 .ra-plotCard .hoverlayer .hovertext path {
   fill: rgba(15, 23, 42, 0.95) !important;
   stroke: rgba(255, 255, 255, 0.25) !important;
@@ -640,20 +606,15 @@
   font-weight: 900 !important;
 }
 
-/* Modebar: dark icons on white */
 .ra-plotCard .modebar {
   background: rgba(255, 255, 255, 0.90) !important;
   border-radius: 10px !important;
   box-shadow: 0 12px 24px rgba(2, 6, 23, 0.10) !important;
 }
-.ra-plotCard .modebar-btn path {
-  fill: rgba(15, 23, 42, 0.85) !important;
-}
-.ra-plotCard .modebar-btn:hover {
-  background: rgba(242, 195, 0, 0.20) !important;
-}
+.ra-plotCard .modebar-btn path { fill: rgba(15, 23, 42, 0.85) !important; }
+.ra-plotCard .modebar-btn:hover { background: rgba(242, 195, 0, 0.20) !important; }
 
-/* ---------- Floating legend ---------- */
+/* Floating legend */
 .ra-legend {
   position: absolute;
   right: 14px;
@@ -720,11 +681,9 @@
   line-height: 1.35;
 }
 
-.ra-legend.closed .ra-legendContent {
-  display: none;
-}
+.ra-legend.closed .ra-legendContent { display: none; }
 
-/* ---------- Footer ---------- */
+/* Footer */
 .ra-footer {
   position: relative;
   z-index: 1;
@@ -735,7 +694,7 @@
   font-size: 12px;
 }
 
-/* ---------- Responsive ---------- */
+/* Responsive */
 @media (max-width: 1200px) {
   .ra-headerInner,
   .ra-main,
@@ -749,7 +708,7 @@
   }
 
   .ra-workspace.sidebar-open {
-    grid-template-columns: 1fr; /* stack */
+    grid-template-columns: 1fr;
   }
 
   .ra-sidebar {
@@ -774,5 +733,3 @@
     left: 14px;
   }
 }
-
-
