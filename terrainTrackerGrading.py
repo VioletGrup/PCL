@@ -615,15 +615,16 @@ def main(project: Project) -> None:
 if __name__ == "__main__":
     print("Initialising project...")
     constraints = ProjectConstraints(
-        min_reveal_height=3.22,
-        max_reveal_height=5,
-        pile_install_tolerance=0.05,
-        max_incline=0.15,
+        min_reveal_height=1.075,
+        max_reveal_height=1.525,
+        pile_install_tolerance=0.075,
+        max_incline=0.10,
         target_height_percantage=0.5,
         max_angle_rotation=0.0,
         max_cumulative_deflection_deg=4.0,
-        max_segment_deflection_deg=0.75,
+        max_segment_deflection_deg=0.5,
         edge_overhang=0.0,
+        with_shading=False,
     )
 
     # Load project from Excel
@@ -667,7 +668,7 @@ if __name__ == "__main__":
         south_cum = 0.0
 
         # Check breaks at interior piles
-        for pid in range(2, tracker.pole_count):
+        for pid in range(1, tracker.pole_count):
             pile = tracker.get_pile_in_tracker(pid)
             b = pile.degree_break(tracker)
 

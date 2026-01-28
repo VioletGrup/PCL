@@ -18,6 +18,7 @@ class ProjectConstraints:
     max_angle_rotation: float  # degrees
     edge_overhang: float  # meters
     target_height_percantage: float = 0.5  # % of grading window
+    with_shading: bool = False  # True if min and max heights depending on shading analysis
 
     # Terrain-following only (degrees)
     max_segment_deflection_deg: Optional[float] = None
@@ -44,3 +45,45 @@ class ProjectConstraints:
                 )
             if self.max_segment_deflection_deg < 0 or self.max_cumulative_deflection_deg < 0:
                 raise ValueError("Deflection degrees must be >= 0.")
+
+
+@dataclass
+class ShadingConstraints(ProjectConstraints):
+    """
+    Constraints for projects that include shading.
+
+    Only construct this class when the Project has with_shading=True.
+    """
+
+    # Solar position / shared shading inputs
+    azimuth_deg: float = 0.0
+    sun_angle_deg: float = 0.0  # solar altitude
+    zenith_deg: Optional[float] = None
+
+    # Geometry / tracker constraints used by shading analyses
+    pitch: float = 0.0
+    min_gap_btwn_end_modules: float = 0.0
+
+    @property
+    def tracker_axis_angle_max(self) -> float:
+        """Alias for ProjectConstraints.max_angle_rotation (degrees)."""
+        return self.max_angle_rotation
+
+    def validate(self, project_type: ProjectType) -> None:
+        super().validate(project_type)
+
+        if not self.with_shading:
+            raise ValueError(
+                "ShadingConstraints must have with_shading=True. "
+                "Use ProjectConstraints for non-shading projects."
+            )
+
+        if not (0.0 <= self.azimuth_deg <= 360.0):
+            raise ValueError("azimuth_deg must be in [0, 360].")
+        if not (0.0 <= self.sun_angle_deg <= 90.0):
+            raise ValueError("sun_angle_deg must be in [0, 90].")
+
+        if self.pitch <= 0.0:
+            raise ValueError("pitch must be > 0.")
+        if self.min_gap_btwn_end_modules < 0.0:
+            raise ValueError("min_gap_btwn_end_modules must be >= 0.")
