@@ -617,7 +617,7 @@ if __name__ == "__main__":
     constraints = ProjectConstraints(
         min_reveal_height=1.075,
         max_reveal_height=1.525,
-        pile_install_tolerance=0.075,
+        pile_install_tolerance=0.075 * 2,
         max_incline=0.10,
         target_height_percantage=0.5,
         max_angle_rotation=0.0,

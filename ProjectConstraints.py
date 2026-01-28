@@ -63,6 +63,7 @@ class ShadingConstraints(ProjectConstraints):
     # Geometry / tracker constraints used by shading analyses
     pitch: float = 0.0
     min_gap_btwn_end_modules: float = 0.0
+    module_length: float = 0.0
 
     @property
     def tracker_axis_angle_max(self) -> float:
@@ -87,3 +88,5 @@ class ShadingConstraints(ProjectConstraints):
             raise ValueError("pitch must be > 0.")
         if self.min_gap_btwn_end_modules < 0.0:
             raise ValueError("min_gap_btwn_end_modules must be >= 0.")
+        if self.module_length <= 0.0:
+            raise ValueError("module_length must be > 0")
