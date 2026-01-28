@@ -107,9 +107,7 @@ def _total_grading_cost(violating_piles: list[dict[str, float]]) -> float:
     return sum(abs(v["below_by"]) + v["above_by"] for v in violating_piles)
 
 
-def _apply_line_to_tracker(
-    tracker: BaseTracker, slope: float, y_intercept: float
-) -> None:
+def _apply_line_to_tracker(tracker: BaseTracker, slope: float, y_intercept: float) -> None:
     """
     Loops through tracker and sets the height to fit the line
 
@@ -705,8 +703,7 @@ def main(project: Project) -> None:
 
         if piles_outside:
             window_half = (
-                piles_outside[0]["grading_window_max"]
-                - piles_outside[0]["grading_window_min"]
+                piles_outside[0]["grading_window_max"] - piles_outside[0]["grading_window_min"]
             ) / 2.0
 
             intercept_span = max(1e-6, 4.0 * window_half)
@@ -758,7 +755,7 @@ if __name__ == "__main__":
     # Load project from Excel
 
     print("Loading data from Excel...")
-    excel_path = "Test Piling Info.xlsx"  # change if needed
+    excel_path = "PCL/Test Piling Info.xlsx"  # change if needed
     sheet_name = "Piling information"  # change to your actual sheet name
 
     project = load_project_from_excel(
