@@ -14,12 +14,6 @@ from PCL.ProjectConstraints import ProjectConstraints, ShadingConstraints
 class EastWest:
     constraints: ShadingConstraints
 
-    def __init__(self, constraints: ProjectConstraints) -> None:
-        if not constraints.with_shading:
-            raise ValueError("EastWest shading analysis requires with_shading=True.")
-        assert isinstance(constraints, ShadingConstraints)
-        self.constraints = constraints
-
     @property
     def azimuth(self) -> float:
         return self.constraints.azimuth_deg
@@ -44,6 +38,10 @@ class EastWest:
     def module_length(self) -> float:
         return self.constraints.module_length
 
+    @property
+    def tracker_axis_angle(self) -> float:
+        return self.constraints.tracker_axis_angle
+
     def ew_shadow_length(self) -> float:  # millimeters
         max_shadow_length = 1000 / (math.tan(math.radians(self.sun_angle)))
         return math.cos(math.radians(90 - self.azimuth)) * (max_shadow_length / 1000)
@@ -52,13 +50,13 @@ class EastWest:
         return abs(
             math.atan(
                 math.tan(self.zenith * (math.pi / 180))
-                * math.sin((self.azimuth * (math.pi / 180)) - self.tracker_axis_angle_max)
+                * math.sin((self.azimuth * (math.pi / 180)) - self.tracker_axis_angle)
             )
             * (math.pi / 180)
         )
 
     def max_module_height_diff(self) -> float:  # metres
-        return math.sin(self.max_tracking_angle * (math.pi / 180)) * self.module_length
+        return math.sin(self.max_tracking_angle() * (math.pi / 180)) * self.module_length
 
     def ew_tracker_module_gap(self) -> float:  # metres
         return (
@@ -67,7 +65,9 @@ class EastWest:
         )
 
     def max_ew_pile_height_difference(self) -> float:  # metres
-        return (self.ew_tracker_module_gap / self.ew_shadow_length) - self.max_module_height_diff
+        return (
+            self.ew_tracker_module_gap() / self.ew_shadow_length()
+        ) - self.max_module_height_diff()
 
     def max_slope_percentage(self) -> float:  # %
-        return (self.max_ew_pile_height_difference * 100) / self.pitch
+        return (self.max_ew_pile_height_difference() * 100) / self.pitch

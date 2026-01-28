@@ -18,7 +18,6 @@ class ProjectConstraints:
     max_angle_rotation: float  # degrees
     edge_overhang: float  # meters
     target_height_percantage: float = 0.5  # % of grading window
-    with_shading: bool = False  # True if min and max heights depending on shading analysis
 
     # Terrain-following only (degrees)
     max_segment_deflection_deg: Optional[float] = None
@@ -50,9 +49,7 @@ class ProjectConstraints:
 @dataclass
 class ShadingConstraints(ProjectConstraints):
     """
-    Constraints for projects that include shading.
-
-    Only construct this class when the Project has with_shading=True.
+    Extra constraints required when shading analysis is enabled.
     """
 
     # Solar position / shared shading inputs
@@ -64,6 +61,7 @@ class ShadingConstraints(ProjectConstraints):
     pitch: float = 0.0
     min_gap_btwn_end_modules: float = 0.0
     module_length: float = 0.0
+    tracker_axis_angle: float = 0.0
 
     @property
     def tracker_axis_angle_max(self) -> float:
@@ -72,12 +70,6 @@ class ShadingConstraints(ProjectConstraints):
 
     def validate(self, project_type: ProjectType) -> None:
         super().validate(project_type)
-
-        if not self.with_shading:
-            raise ValueError(
-                "ShadingConstraints must have with_shading=True. "
-                "Use ProjectConstraints for non-shading projects."
-            )
 
         if not (0.0 <= self.azimuth_deg <= 360.0):
             raise ValueError("azimuth_deg must be in [0, 360].")
@@ -89,4 +81,4 @@ class ShadingConstraints(ProjectConstraints):
         if self.min_gap_btwn_end_modules < 0.0:
             raise ValueError("min_gap_btwn_end_modules must be >= 0.")
         if self.module_length <= 0.0:
-            raise ValueError("module_length must be > 0")
+            raise ValueError("module_length must be > 0.")
