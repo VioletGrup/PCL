@@ -220,8 +220,14 @@ body {
 
 @keyframes fp-pulse {
   0%,
-  100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(1.25); }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.25);
+  }
 }
 
 .fp-h1 {
@@ -448,7 +454,7 @@ body {
 /* ✅ Grid + axis lines (Plotly uses BOTH line + path across versions) */
 .fp-plotCard .gridlayer line,
 .fp-plotCard .gridlayer path {
-  stroke: rgb(2, 6, 23) !important;  /* stronger */
+  stroke: rgb(2, 6, 23) !important; /* stronger */
   stroke-width: 1px !important;
   shape-rendering: crispEdges;
 }
@@ -540,6 +546,87 @@ body {
   display: none;
 }
 
+/* ✅ NEW: Pile jump box */
+.fp-pileJump {
+  border-radius: 18px;
+  border: 1px solid rgba(242, 195, 0, 0.18);
+  background: rgba(0, 0, 0, 0.22);
+  padding: 12px;
+  box-shadow: var(--shadow-md);
+  backdrop-filter: blur(14px);
+  margin-bottom: 12px;
+}
+
+.fp-pileJumpLabel {
+  font-weight: 950;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pcl-gold);
+  margin-bottom: 8px;
+}
+
+.fp-pileJumpRow {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.fp-pileJumpPrefix {
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(242, 195, 0, 0.22);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 950;
+  white-space: nowrap;
+}
+
+.fp-pileJumpInput {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px dashed rgba(242, 195, 0, 0.45);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+  font-weight: 900;
+  outline: none;
+}
+
+.fp-pileJumpInput::placeholder {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 800;
+}
+
+.fp-pileJumpInput:focus {
+  border-color: rgba(242, 195, 0, 0.75);
+  box-shadow: 0 0 0 4px rgba(242, 195, 0, 0.12);
+}
+
+.fp-pileJumpBtn {
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  font-weight: 950;
+  color: #0b0c0f;
+  background: linear-gradient(135deg, var(--pcl-gold), #ffd84a);
+  box-shadow: 0 14px 34px rgba(242, 195, 0, 0.22);
+}
+
+.fp-pileJumpBtn:hover {
+  box-shadow: 0 18px 46px rgba(242, 195, 0, 0.34);
+}
+
+.fp-pileJumpHint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
 .fp-sidebarHeader {
   margin-bottom: 10px;
 }
@@ -612,9 +699,15 @@ body {
   border-radius: 999px;
 }
 
-.fp-marker.pile-ok { background: rgba(66, 66, 66, 0.95); }
-.fp-marker.pile-graded { background: rgba(255, 152, 0, 0.95); }
-.fp-marker.pile-violation { background: rgba(255, 77, 77, 0.95); }
+.fp-marker.pile-ok {
+  background: rgba(66, 66, 66, 0.95);
+}
+.fp-marker.pile-graded {
+  background: rgba(255, 152, 0, 0.95);
+}
+.fp-marker.pile-violation {
+  background: rgba(255, 77, 77, 0.95);
+}
 
 .fp-line {
   width: 26px;
@@ -623,14 +716,35 @@ body {
   border-radius: 999px;
 }
 
-.fp-line.limit-max-dash { border-top-color: rgba(211, 47, 47, 0.95); border-top-style: dashed; }
-.fp-line.limit-min-dash { border-top-color: rgba(25, 118, 210, 0.95); border-top-style: dashed; }
-.fp-line.limit-max-solid { border-top-color: rgba(211, 47, 47, 0.95); border-top-style: solid; }
-.fp-line.limit-min-solid { border-top-color: rgba(25, 118, 210, 0.95); border-top-style: solid; }
+.fp-line.limit-max-dash {
+  border-top-color: rgba(211, 47, 47, 0.95);
+  border-top-style: dashed;
+}
+.fp-line.limit-min-dash {
+  border-top-color: rgba(25, 118, 210, 0.95);
+  border-top-style: dashed;
+}
+.fp-line.limit-max-solid {
+  border-top-color: rgba(211, 47, 47, 0.95);
+  border-top-style: solid;
+}
+.fp-line.limit-min-solid {
+  border-top-color: rgba(25, 118, 210, 0.95);
+  border-top-style: solid;
+}
 
-.fp-line.original-ground { border-top-color: rgba(139, 69, 19, 0.95); border-top-style: dotted; }
-.fp-line.proposed-ground { border-top-color: rgba(46, 125, 50, 0.95); border-top-style: solid; }
-.fp-line.optimal-line { border-top-color: rgba(0, 0, 0, 0.95); border-top-style: solid; }
+.fp-line.original-ground {
+  border-top-color: rgba(139, 69, 19, 0.95);
+  border-top-style: dotted;
+}
+.fp-line.proposed-ground {
+  border-top-color: rgba(46, 125, 50, 0.95);
+  border-top-style: solid;
+}
+.fp-line.optimal-line {
+  border-top-color: rgba(0, 0, 0, 0.95);
+  border-top-style: solid;
+}
 
 .fp-sidebarFooter {
   margin-top: 12px;
@@ -760,4 +874,9 @@ body {
   .fp-violationsOverlay {
     width: 280px;
   }
+}
+
+/* Make piles feel clickable */
+.fp-plotCard .scatterlayer path {
+  cursor: pointer;
 }
