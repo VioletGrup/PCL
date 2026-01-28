@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from Project import Project
 from TrackerABC import TrackerABC
 
-from ..ProjectConstraints import ProjectConstraints, ShadingConstraints
+from PCL.ProjectConstraints import ProjectConstraints, ShadingConstraints
 
 
 @dataclass
@@ -48,25 +48,26 @@ class EastWest:
         max_shadow_length = 1000 / (math.tan(math.radians(self.sun_angle)))
         return math.cos(math.radians(90 - self.azimuth)) * (max_shadow_length / 1000)
 
-    def max_idk(self, east_tracker: TrackerABC, west_tracker: TrackerABC) -> float:
-        max_shadow_length = 1000 / (math.tan(math.radians(self.sun_angle)))
-        ew_shadow_length = 
-        day_max_tracking_angle = abs(
+    def max_tracking_angle(self) -> float:  # degrees
+        return abs(
             math.atan(
                 math.tan(self.zenith * (math.pi / 180))
                 * math.sin((self.azimuth * (math.pi / 180)) - self.tracker_axis_angle_max)
             )
             * (math.pi / 180)
         )
-        # module_height_diff = 0.0  #############################
-        max_module_height_diff = (
-            math.sin(day_max_tracking_angle * (math.pi / 180)) * self.module_length
-        )
-        tracker_module_gap = (
+
+    def max_module_height_diff(self) -> float:  # metres
+        return math.sin(self.max_tracking_angle * (math.pi / 180)) * self.module_length
+
+    def ew_tracker_module_gap(self) -> float:  # metres
+        return (
             self.pitch
             - math.cos(self.tracker_axis_angle_max * (math.pi * 180)) * self.module_length
         )
-        max_height_diff = (tracker_module_gap / ew_shadow_length) - max_module_height_diff
-        max_slope_percentage = (max_height_diff * 100) / self.pitch
 
-        return max_slope_percentage
+    def max_ew_pile_height_difference(self) -> float:  # metres
+        return (self.ew_tracker_module_gap / self.ew_shadow_length) - self.max_module_height_diff
+
+    def max_slope_percentage(self) -> float:  # %
+        return (self.max_ew_pile_height_difference * 100) / self.pitch

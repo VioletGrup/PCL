@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from ..ProjectConstraints import ProjectConstraints, ShadingConstraints
+from PCL.ProjectConstraints import ProjectConstraints, ShadingConstraints
 
 
 @dataclass
