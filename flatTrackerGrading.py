@@ -702,7 +702,7 @@ if __name__ == "__main__":
     # Load project from Excel
  
     print("Loading data from Excel...")
-    excel_path = "PCL/Test Piling Info.xlsx"  # change if needed
+    excel_path = "Test Piling Info.xlsx"  # change if needed
     sheet_name = "Piling information"  # change to your actual sheet name
  
     project = load_project_from_excel(

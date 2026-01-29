@@ -510,12 +510,11 @@ if __name__ == "__main__":
         max_reveal_height=1.525,
         pile_install_tolerance=0.075 * 2,
         max_incline=0.10,
-        target_height_percantage=0.5,
+        target_height_percentage=0.5,
         max_angle_rotation=0.0,
         max_cumulative_deflection_deg=4.0,
         max_segment_deflection_deg=0.5,
         edge_overhang=0.0,
-        with_shading=False,
     )
 
     # Load project from Excel

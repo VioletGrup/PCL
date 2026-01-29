@@ -1,4 +1,4 @@
-from PCL.backend.endpoints import grading, templates
+from endpoints import grading, templates
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
