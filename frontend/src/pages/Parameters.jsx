@@ -29,8 +29,8 @@ export default function Parameters() {
   const [trackerEdgeOverhang, setTrackerEdgeOverhang] = useState(""); // m
 
   // XTR-only
-  const [maxSegmentSlopeChange, setMaxSegmentSlopeChange] = useState(""); // %
-  const [maxCumulativeSlopeChange, setMaxCumulativeSlopeChange] = useState(""); // %
+  const [maxSegmentDeflectionDeg, setMaxSegmentDeflectionDeg] = useState(""); // deg
+  const [maxCumulativeDeflectionDeg, setMaxCumulativeDeflectionDeg] = useState(""); // deg
 
   // Module geometry
   const [moduleLength, setModuleLength] = useState(""); // m
@@ -59,8 +59,8 @@ export default function Parameters() {
         setInstallationTolerance(saved.installationTolerance ?? "");
         setTrackerEdgeOverhang(saved.trackerEdgeOverhang ?? "");
 
-        setMaxSegmentSlopeChange(saved.maxSegmentSlopeChange ?? "");
-        setMaxCumulativeSlopeChange(saved.maxCumulativeSlopeChange ?? "");
+        setMaxSegmentDeflectionDeg(saved.max_segment_deflection_deg ?? "");
+        setMaxCumulativeDeflectionDeg(saved.max_cumulative_deflection_deg ?? "");
 
         setModuleLength(saved.moduleLength ?? "");
         setModuleWidth(saved.moduleWidth ?? "");
@@ -101,8 +101,8 @@ export default function Parameters() {
   useEffect(() => {
     setError("");
     if (trackerType === "flat") {
-      setMaxSegmentSlopeChange("");
-      setMaxCumulativeSlopeChange("");
+      setMaxSegmentDeflectionDeg("");
+      setMaxCumulativeDeflectionDeg("");
     }
   }, [trackerType]);
 
@@ -126,7 +126,7 @@ export default function Parameters() {
     }
 
     if (trackerType === "xtr") {
-      if (!maxSegmentSlopeChange || !maxCumulativeSlopeChange) {
+      if (!maxSegmentDeflectionDeg || !maxCumulativeDeflectionDeg) {
         return "Please complete all required XTR slope change fields.";
       }
     }
@@ -186,8 +186,8 @@ export default function Parameters() {
       installationTolerance,
       trackerEdgeOverhang,
 
-      maxSegmentSlopeChange: trackerType === "xtr" ? maxSegmentSlopeChange : "",
-      maxCumulativeSlopeChange: trackerType === "xtr" ? maxCumulativeSlopeChange : "",
+      max_segment_deflection_deg: trackerType === "xtr" ? maxSegmentDeflectionDeg : "",
+      max_cumulative_deflection_deg: trackerType === "xtr" ? maxCumulativeDeflectionDeg : "",
 
       moduleLength,
       moduleWidth,
@@ -414,8 +414,8 @@ export default function Parameters() {
                     <input
                       className="pr-input"
                       type="number"
-                      value={maxSegmentSlopeChange}
-                      onChange={(e) => setMaxSegmentSlopeChange(e.target.value)}
+                      value={maxSegmentDeflectionDeg}
+                      onChange={(e) => setMaxSegmentDeflectionDeg(e.target.value)}
                       placeholder="e.g., 0.5"
                     />
                   </div>
@@ -425,8 +425,8 @@ export default function Parameters() {
                     <input
                       className="pr-input"
                       type="number"
-                      value={maxCumulativeSlopeChange}
-                      onChange={(e) => setMaxCumulativeSlopeChange(e.target.value)}
+                      value={maxCumulativeDeflectionDeg}
+                      onChange={(e) => setMaxCumulativeDeflectionDeg(e.target.value)}
                       placeholder="e.g., 4.0"
                     />
                   </div>

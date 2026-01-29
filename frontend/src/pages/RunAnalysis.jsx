@@ -303,10 +303,10 @@ export default function RunAnalysis() {
 
       // ✅ XTR: Pass degrees directly (no pctToDeg)
       const segDefDeg =
-        trackerType === "xtr" && params.maxSegmentSlopeChange ? parseFloat(params.maxSegmentSlopeChange) : null;
+        trackerType === "xtr" && params.max_segment_deflection_deg ? parseFloat(params.max_segment_deflection_deg) : null;
 
       const cumDefDeg =
-        trackerType === "xtr" && params.maxCumulativeSlopeChange ? parseFloat(params.maxCumulativeSlopeChange) : null;
+        trackerType === "xtr" && params.max_cumulative_deflection_deg ? parseFloat(params.max_cumulative_deflection_deg) : null;
 
       const request = {
         tracker_type: trackerType,
