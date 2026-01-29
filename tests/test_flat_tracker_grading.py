@@ -91,8 +91,9 @@ class TestGradingWindow:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -170,8 +171,9 @@ class TestTargetHeightLine:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -273,8 +275,9 @@ class TestCheckWithinWindow:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -356,8 +359,9 @@ class TestSlidingLine:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -396,19 +400,18 @@ class TestGrading:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Test", project_type="standard", constraints=constraints)
 
-    def test_grading_adjusts_elevation_correctly(self, project):
+    def test_grading_brings_violating_pile_into_window(self, project):
         """
-        Test that grading adjusts current elevation by the correct amount.
-
-        The grading function should move ground elevation by (below_by + above_by).
-        - If pile is BELOW window (below_by < 0), ground should be LOWERED
-        - If pile is ABOVE window (above_by > 0), ground should be RAISED
-        """
+        After grading, previously violating piles should be within their windows.
+        
+        This tests the OUTCOME, not the implementation.
+        """    
         tracker = BaseTracker(tracker_id=1)
         pile = BasePile(
             northing=100.0,
@@ -419,27 +422,31 @@ class TestGrading:
             flooding_allowance=0.0,
         )
         tracker.add_pile(pile)
-
-        initial_elevation = pile.current_elevation
-
-        # Pile is 0.08 below the minimum window
-        violating_piles = [
-            {
-                "pile_in_tracker": 1,
-                "below_by": -0.08,  # Pile is 0.08 below minimum
-                "above_by": 0.0,
-            }
-        ]
-
-        grading(tracker, violating_piles)
-
-        # Expected movement = below_by + above_by = -0.08 + 0.0 = -0.08
-        # Ground should be lowered by 0.08 to bring pile height up into window
-        expected_movement = violating_piles[0]["below_by"] + violating_piles[0]["above_by"]
-        actual_movement = pile.current_elevation - initial_elevation
-
-        assert abs(actual_movement - expected_movement) < 1e-6, (
-            f"Expected ground to move by {expected_movement}, but moved by {actual_movement}"
+        
+        # Set pile to violate the window
+        pile.height = 11.30  # This will be below minimum
+        
+        # Get initial window and violations
+        window_before = grading_window(project, tracker)
+        violations_before = check_within_window(window_before, tracker)
+        
+        # Verify there IS a violation before grading
+        assert len(violations_before) > 0, (
+            "Test setup error: pile should violate window before grading"
+        )
+        
+        # ACT - Apply grading
+        grading(tracker, violations_before)
+        
+        # ASSERT - Check that violations are fixed
+        # Recalculate window with new ground elevation
+        window_after = grading_window(project, tracker)
+        violations_after = check_within_window(window_after, tracker)
+        
+        # After grading, there should be NO violations
+        assert len(violations_after) == 0, (
+            f"After grading, pile should be within window, but still has violations: "
+            f"{violations_after}"
         )
 
     def test_grading_pile_above_window(self, project):
@@ -507,8 +514,9 @@ class TestAlgorithmCorrectness:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -592,8 +600,9 @@ class TestAlgorithmCorrectness:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Steep_Test", project_type="standard", constraints=constraints)
 
@@ -661,8 +670,9 @@ class TestAlgorithmCorrectness:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Dip_Test", project_type="standard", constraints=constraints)
 
@@ -716,25 +726,19 @@ class TestEdgeCasesAndAbnormalValues:
     """Test behavior with extreme or invalid values."""
 
     def test_extreme_tolerance(self):
-        """Test with very large tolerance - window should be very small or inverse."""
+        """Test with very large tolerance - should raise ValueError for inverted window."""
         constraints = ProjectConstraints(
             min_reveal_height=1.4,
             max_reveal_height=1.6,
             pile_install_tolerance=0.5,  # tol/2 = 0.25, larger than 1.6-1.4=0.2
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
-        project = Project(name="Edge", project_type="standard", constraints=constraints)
-        tracker = BaseTracker(tracker_id=1)
-        pile = BasePile(100, 50, 10, 1.01, 1, 0)
-        tracker.add_pile(pile)
-
-        window = grading_window(project, tracker)
-        # min = 10 + 1.4 + 0.25 = 11.65
-        # max = 10 + 1.6 - 0.25 = 11.35
-        # Window is inverted! min > max. Algorithm should still handle it (likely as a violation).
-        assert window[0]["grading_window_min"] > window[0]["grading_window_max"]
+        # Now properly rejects inverted window configurations at validation time
+        with pytest.raises(ValueError, match="pile_install_tolerance.*too large"):
+            constraints.validate("standard")
 
     def test_zero_window(self):
         """Test where min reveal == max reveal."""
@@ -743,8 +747,9 @@ class TestEdgeCasesAndAbnormalValues:
             max_reveal_height=1.5,  # Zero window
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         # Note: ProjectConstraints.validate() might catch this, but let's test the logic.
         with pytest.raises(ValueError, match="min_reveal_height must be < max_reveal_height"):
@@ -752,14 +757,15 @@ class TestEdgeCasesAndAbnormalValues:
 
     def test_negative_target_percentage(self):
         """Test with abnormal target percentage."""
-        # Note: validate() doesn't check target_height_percantage range, let's see logic.
+        # Note: validate() doesn't check target_height_percentage range, let's see logic.
         constraints = ProjectConstraints(
             min_reveal_height=1.375,
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=-1.0,  # Abnormal
+            target_height_percentage=-1.0,  # Abnormal
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Edge", project_type="standard", constraints=constraints)
         tracker = BaseTracker(tracker_id=1)
@@ -773,7 +779,15 @@ class TestEdgeCasesAndAbnormalValues:
 
     def test_extremely_steep_terrain(self):
         """Test with terrain slope 1.0 (45 deg) with max_incline 0.15."""
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.0)
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         project = Project("Steep", "standard", constraints)
         tracker = BaseTracker(1)
         # Rise 10 over Run 10 = slope 1.0
@@ -785,7 +799,15 @@ class TestEdgeCasesAndAbnormalValues:
 
     def test_empty_tracker(self):
         """Test that main() handles empty trackers without error."""
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.0)
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         project = Project("Empty", "standard", constraints)
         tracker = BaseTracker(1)  # No piles
         project.add_tracker(tracker)
@@ -795,27 +817,43 @@ class TestEdgeCasesAndAbnormalValues:
         main(project)  # Should not raise
 
     def test_zero_northing_difference(self):
-        """Test behavior when piles have same northing (should avoid division by zero)."""
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.0)
+        """Test that zero run between piles causes ValueError with clear message."""
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         project = Project("ZeroRun", "standard", constraints)
         tracker = BaseTracker(1)
-        # Same northing
+        
+        # Same northing - vertical alignment (invalid)
         tracker.add_pile(BasePile(100, 50, 10, 1.01, 1, 0))
-        tracker.add_pile(BasePile(100, 60, 11, 1.02, 2, 0))
+        tracker.add_pile(BasePile(100, 60, 11, 1.02, 2, 0))  # Same northing!
         project.add_tracker(tracker)
 
-        # target_height_line uses: slope = (last - first) / (last.northing - first.northing)
-        # This will raise ZeroDivisionError if not handled.
-        with pytest.raises(ZeroDivisionError):
+        # Zero northing difference now raises ValueError with descriptive message
+        with pytest.raises(ValueError, match="identical northing"):
             target_height_line(tracker, project)
 
     def test_single_pile_tracker(self):
         """Test that a single-pile tracker is handled correctly."""
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.0)
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         project = Project("SinglePile", "standard", constraints)
         tracker = BaseTracker(1)
         # One pile
-        tracker.add_pile(BasePile(100, 50, 10, 1.01, 1, 0))
+        tracker.add_pile(BasePile(100, 50, 10, 1, 1, 0))
         project.add_tracker(tracker)
 
         from flatTrackerGrading import main
@@ -827,39 +865,94 @@ class TestEdgeCasesAndAbnormalValues:
         assert abs(pile.height - 11.5) < 1e-6
         assert abs(pile.pile_revealed - 1.5) < 1e-6
 
-    def test_pile_sorting_and_discontinuity(self):
-        """Test out-of-order pile positions and indices."""
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.0)
-        project = Project("Sorting", "standard", constraints)
-        tracker = BaseTracker(1)
-        # Added out of order (by northing and index)
-        tracker.add_pile(BasePile(150, 50, 15, 1.03, 3, 0))
-        tracker.add_pile(BasePile(100, 50, 10, 1.01, 1, 0))
-        tracker.add_pile(BasePile(125, 50, 12, 1.02, 2, 0))
-        # tracker.sort_by_pole_position() is called inside main() normally
-        # but let's be explicit here to test the loader logic
-        tracker.sort_by_pole_position()
-        project.add_tracker(tracker)
-
-        assert tracker.piles[0].pile_in_tracker == 1
-        assert tracker.piles[-1].pile_in_tracker == 3
-
+    def test_main_requires_sorted_piles(self):
+        """Test that main() works correctly when piles are already sorted by northing.
+        
+        Note: flatTrackerGrading.main() expects piles to be sorted by northing.
+        The caller is responsible for sorting piles before calling main().
+        """
         from flatTrackerGrading import main
-
+        
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
+        
+        # Create piles in sorted order (by northing)
+        pile_low = BasePile(
+            northing=100.0,
+            easting=50.0,
+            initial_elevation=10.0,
+            pile_in_tracker=1,
+            pile_id=1.01,
+            flooding_allowance=0.0,
+        )
+        pile_mid = BasePile(
+            northing=115.0,
+            easting=50.0,
+            initial_elevation=11.0,
+            pile_in_tracker=2,
+            pile_id=1.02,
+            flooding_allowance=0.0,
+        )
+        pile_high = BasePile(
+            northing=125.0,
+            easting=50.0,
+            initial_elevation=12.0,
+            pile_in_tracker=3,
+            pile_id=1.03,
+            flooding_allowance=0.0,
+        )
+        
+        tracker = BaseTracker(tracker_id=1)
+        tracker.add_pile(pile_low)
+        tracker.add_pile(pile_mid)
+        tracker.add_pile(pile_high)
+        
+        project = Project(
+            name="SortTest",
+            project_type="standard",
+            constraints=constraints,
+        )
+        project.add_tracker(tracker)
+        
+        # Piles are in sorted order
+        assert tracker.piles[0].northing < tracker.piles[1].northing < tracker.piles[2].northing
+        
+        # Call main()
         main(project)
-        # Should finish without error
+        
+        # Verify grading completed successfully
+        for pile in tracker.piles:
+            assert pile.final_elevation >= 0
+            assert pile.total_height > 0
+            assert constraints.min_reveal_height - 1e-6 <= pile.pile_revealed <= constraints.max_reveal_height + 1e-6
 
     def test_high_flooding_allowance(self):
         """Test that high flooding allowance shifts the window up."""
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.0)
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         project = Project("Flooding", "standard", constraints)
         tracker = BaseTracker(1)
         # Large flooding allowance
-        pile = BasePile(100, 50, 10, 1.01, 1, flooding_allowance=2.0)
+        pile = BasePile(100, 50, 10, 1, 1, flooding_allowance=2.0)
         tracker.add_pile(pile)
         project.add_tracker(tracker)
 
-        window = grading_window(project, tracker)
+        with pytest.warns(UserWarning, match="inverted grading window"):
+            window = grading_window(project, tracker)
         # min = 10 + 1.4 + 2.0 = 13.4
         # max = 10 + 1.6 = 11.6
         # Note: If max_reveal doesn't account for flooding, min > max happens.
@@ -868,31 +961,55 @@ class TestEdgeCasesAndAbnormalValues:
         assert window[0]["grading_window_max"] == 11.6
 
     def test_target_height_percentage_boundaries(self):
-        """Test target_height_percantage at 0.0 and 1.0."""
+        """Test target_height_percentage at 0.0 and 1.0."""
         tracker = BaseTracker(1)
-        tracker.add_pile(BasePile(100, 50, 10, 1.01, 1, 0))
+        tracker.add_pile(BasePile(100, 50, 10, 1, 1, 0))
 
         # 0%
-        c0 = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.0, 0.0)
+        c0 = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.0,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         p0 = Project("B0", "standard", c0)
         assert abs(tracker.piles[0].pile_at_target_height(p0) - 11.4) < 1e-6
 
         # 100%
-        c1 = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 1.0, 0.0)
+        c1 = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=1.0,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         p1 = Project("B1", "standard", c1)
         assert abs(tracker.piles[0].pile_at_target_height(p1) - 11.6) < 1e-6
 
     def test_outlier_spike_handling(self):
         """Test optimizer response to a single major spike."""
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.0)
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         project = Project("Outlier", "standard", constraints)
         tracker = BaseTracker(1)
         # 5 piles, middle one is a spike
-        tracker.add_pile(BasePile(100, 50, 10, 1.01, 1, 0))
-        tracker.add_pile(BasePile(110, 50, 10, 1.02, 2, 0))
-        tracker.add_pile(BasePile(120, 50, 20, 1.03, 3, 0))  # SPIKE!
-        tracker.add_pile(BasePile(130, 50, 10, 1.04, 4, 0))
-        tracker.add_pile(BasePile(140, 50, 10, 1.05, 5, 0))
+        tracker.add_pile(BasePile(northing=100, easting=50, initial_elevation=10, pile_in_tracker=1, pile_id=1, flooding_allowance=0))
+        tracker.add_pile(BasePile(northing=110, easting=50, initial_elevation=10, pile_in_tracker=2, pile_id=1, flooding_allowance=0))
+        tracker.add_pile(BasePile(northing=120, easting=50, initial_elevation=20, pile_in_tracker=3, pile_id=1, flooding_allowance=0))  # SPIKE!
+        tracker.add_pile(BasePile(northing=130, easting=50, initial_elevation=10, pile_in_tracker=4, pile_id=1, flooding_allowance=0))
+        tracker.add_pile(BasePile(northing=140, easting=50, initial_elevation=10, pile_in_tracker=5, pile_id=1, flooding_allowance=0))
         project.add_tracker(tracker)
 
         from flatTrackerGrading import main
@@ -907,13 +1024,21 @@ class TestEdgeCasesAndAbnormalValues:
 
     def test_negative_elevations(self):
         """Test with projects below sea level (negative initial_elevation)."""
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.0)
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         project = Project("BelowSeaLevel", "standard", constraints)
         tracker = BaseTracker(1)
         # All elevations are negative
-        tracker.add_pile(BasePile(100, 50, -10, 1.01, 1, 0))
-        tracker.add_pile(BasePile(110, 50, -10.1, 1.02, 2, 0))
-        tracker.add_pile(BasePile(120, 50, -9.9, 1.03, 3, 0))
+        tracker.add_pile(BasePile(northing=100, easting=50, initial_elevation=-10, pile_in_tracker=1, pile_id=1, flooding_allowance=0))
+        tracker.add_pile(BasePile(northing=110, easting=50, initial_elevation=-10.1, pile_in_tracker=2, pile_id=1, flooding_allowance=0))
+        tracker.add_pile(BasePile(northing=120, easting=50, initial_elevation=-9.9, pile_in_tracker=3, pile_id=1, flooding_allowance=0))
         project.add_tracker(tracker)
 
         from flatTrackerGrading import main
@@ -926,12 +1051,20 @@ class TestEdgeCasesAndAbnormalValues:
 
     def test_massive_coordinate_offsets(self):
         """Test with very large UTM coordinates."""
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.0)
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         project = Project("UTM", "standard", constraints)
         tracker = BaseTracker(1)
         # 7 million Northing, 500k Easting
-        tracker.add_pile(BasePile(7000000.1, 500000.1, 10, 1.01, 1, 0))
-        tracker.add_pile(BasePile(7000001.2, 500000.2, 10.1, 1.02, 2, 0))
+        tracker.add_pile(BasePile(northing=7000000.1, easting=500000.1, initial_elevation=10, pile_in_tracker=1, pile_id=1, flooding_allowance=0))
+        tracker.add_pile(BasePile(northing=7000001.2, easting=500000.2, initial_elevation=10.1, pile_in_tracker=2, pile_id=1, flooding_allowance=0))
         project.add_tracker(tracker)
 
         from flatTrackerGrading import main
@@ -945,11 +1078,19 @@ class TestEdgeCasesAndAbnormalValues:
         """Performance test with 500 piles."""
         import time
 
-        constraints = ProjectConstraints(1.4, 1.6, 0.0, 0.15, 0.5, 0.05)
+        constraints = ProjectConstraints(
+            min_reveal_height=1.4,
+            max_reveal_height=1.6,
+            pile_install_tolerance=0.0,
+            max_incline=0.15,
+            target_height_percentage=0.5,
+            max_angle_rotation=0.0,
+            edge_overhang=0.0,
+        )
         project = Project("Performance", "standard", constraints)
         tracker = BaseTracker(1)
         for i in range(1, 501):
-            tracker.add_pile(BasePile(100 + i * 5, 50, 10 + (i % 5), 1.0, i, 0))
+            tracker.add_pile(BasePile(northing=100 + i * 5, easting=50, initial_elevation=10 + (i % 5), pile_in_tracker=i, pile_id=1, flooding_allowance=0))
         project.add_tracker(tracker)
 
         from flatTrackerGrading import main

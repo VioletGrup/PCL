@@ -47,8 +47,9 @@ def test_grade_project():
             "max_reveal_height": 3.2,
             "pile_install_tolerance": 0.2,
             "max_incline": 15,
-            "target_height_percantage": 0.5,
+            "target_height_percentage": 0.5,
             "max_angle_rotation": 0.0,
+            "edge_overhang": 0.0,
         },
     }
 

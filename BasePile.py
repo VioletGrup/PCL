@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .Project import Project
+    from Project import Project
 
 
 @dataclass
@@ -99,5 +99,5 @@ class BasePile:
         """Return the target height of the pile based on the grading window percentage."""
         grading_window = self.true_max_height(project) - self.true_min_height(project)
         return self.true_min_height(project) + (
-            grading_window * project.constraints.target_height_percantage
+            grading_window * project.constraints.target_height_percentage
         )
