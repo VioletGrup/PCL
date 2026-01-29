@@ -6,11 +6,11 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Literal, Optional, Type, TypeVar
 
-from .BasePile import BasePile
-from .BaseTracker import BaseTracker
-from .ProjectConstraints import ProjectConstraints, ShadingConstraints
-from .TerrainFollowingTracker import TerrainFollowingTracker
-from .TrackerABC import TrackerABC
+from BasePile import BasePile
+from BaseTracker import BaseTracker
+from ProjectConstraints import ProjectConstraints
+from TerrainFollowingTracker import TerrainFollowingTracker
+from TrackerABC import TrackerABC
 
 T = TypeVar("T", bound=BaseTracker)
 ProjectType = Literal["standard", "terrain_following"]

@@ -17,8 +17,7 @@ class ProjectConstraints:
     max_incline: float  # rise/run
     max_angle_rotation: float  # degrees
     edge_overhang: float  # meters
-    target_height_percantage: float = 0.5  # % of grading window
-    with_shading: bool = False  # True if min and max heights depending on shading analysis
+    target_height_percentage: float = 0.5  # % of grading window
 
     # Terrain-following only (degrees)
     max_segment_deflection_deg: Optional[float] = None
@@ -31,6 +30,16 @@ class ProjectConstraints:
             raise ValueError("min_reveal_height must be < max_reveal_height.")
         if self.pile_install_tolerance < 0:
             raise ValueError("pile_install_tolerance must be >= 0.")
+        
+        # Check if tolerance would cause inverted grading window (min > max)
+        effective_window = (self.max_reveal_height - self.min_reveal_height) - self.pile_install_tolerance
+        if effective_window < 0:
+            raise ValueError(
+                f"pile_install_tolerance ({self.pile_install_tolerance}) is too large: "
+                f"it exceeds the reveal height range ({self.max_reveal_height - self.min_reveal_height}), "
+                "which would create an inverted grading window (min > max)."
+            )
+        
         if self.max_incline < 0:
             raise ValueError("max_incline must be >= 0 (rise/run).")
 

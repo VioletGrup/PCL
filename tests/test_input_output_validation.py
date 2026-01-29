@@ -234,145 +234,6 @@ def compare_two_excel_columns_values_only(
 
 
 class TestDataIO:
-    """
-    Commented out because the new optimised grading logic intentionally produces
-    different (better) results compared to the legacy Excel-based calculations.
-
-    Test complete workflow matching EXACT implementation:
-    """
-
-    # def test_full_workflow_matches_expected(self, tmp_path):
-    #     """
-    #     EXACT workflow from testing_compare.py:
-    #     1. Load Test Piling Info.xlsx (via load_project_from_excel)
-    #     2. Run main(project)
-    #     3. Export to final_pile_elevations.xlsx (via to_excel)
-    #     4. Compare column G (row 84402) to Punchs creek Imperial-5.xlsm column CP (row 9)
-    #     """
-    #     import os
-    #
-    #     # Get root directory where Excel files are
-    #     root_dir = Path(__file__).parent.parent
-    #
-    #     # Setup constraints (same as flatTrackerGrading.py if __name__ == "__main__")
-    #     constraints = ProjectConstraints(
-    #         min_reveal_height=1.375,
-    #         max_reveal_height=1.675,
-    #         pile_install_tolerance=0.0,
-    #         max_incline=0.15,
-    #         target_height_percantage=0.5,
-    #         max_angle_rotation=0.0,
-    #     )
-    #
-    #     # Load project from Excel
-    #     input_excel = str(root_dir / "Test Piling Info.xlsx")
-    #     project = load_project_from_excel(
-    #         excel_path=input_excel,
-    #         sheet_name="Piling information",
-    #         project_name="Punchs_Creek",
-    #         project_type="standard",
-    #         constraints=constraints,
-    #     )
-    #
-    #     # Run grading
-    #     main(project)
-    #
-    #     # Export to Excel
-    #     # Must run from tmp_path to not overwrite root file
-    #     original_dir = os.getcwd()
-    #     os.chdir(tmp_path)
-    #
-    #     try:
-    #         to_excel(project)
-    #
-    #         # Now compare
-    #         output_file = str(tmp_path / "final_pile_elevations.xlsx")
-    #         expected_file = str(root_dir / "Punchs creek Flat Tracker Imperial-5.xlsm")
-    #
-    #         diffs = compare_two_excel_columns_values_only(
-    #             excel_a=output_file,
-    #             sheet_a="Sheet1",
-    #             col_a="G",
-    #             start_row_a=84402,
-    #             excel_b=expected_file,
-    #             sheet_b="Calculations",
-    #             col_b="CP",
-    #             start_row_b=9,
-    #             decimals=6,
-    #             max_rows=None,
-    #         )
-    #
-    #         # If diffs, fail test with message
-    #         if diffs:
-    #             diff_msg = "\n".join(diffs[:20])  # Show first 20 differences
-    #             pytest.fail(
-    #                 f"Output doesn't match expected ({len(diffs)} differences):\n{diff_msg}"
-    #             )
-    #         else:
-    #             # Match
-    #             print("MATCH to 6 dp.")
-    #
-    #     finally:
-    #         os.chdir(original_dir)
-
-    # def test_full_workflow_matches_expected_imperial_2(self, tmp_path):
-    #     """
-    #     EXACT workflow for Imperial-2:
-    #     1. Load Test Piling Info.xlsx
-    #     2. Run main(project)
-    #     3. Compare column G (row 21004) to Punchs creek Imperial-2.xlsm column CP (row 9)
-    #     """
-    #     import os
-    #     root_dir = Path(__file__).parent.parent
-    #
-    #     constraints = ProjectConstraints(
-    #         min_reveal_height=1.375,
-    #         max_reveal_height=1.675,
-    #         pile_install_tolerance=0.0,
-    #         max_incline=0.15,
-    #         target_height_percantage=0.5,
-    #         max_angle_rotation=0.0,
-    #     )
-    #
-    #     input_excel = str(root_dir / "Test Piling Info.xlsx")
-    #     project = load_project_from_excel(
-    #         excel_path=input_excel,
-    #         sheet_name="Piling information",
-    #         project_name="Punchs_Creek",
-    #         project_type="standard",
-    #         constraints=constraints,
-    #     )
-    #
-    #     main(project)
-    #
-    #     original_dir = os.getcwd()
-    #     os.chdir(tmp_path)
-    #
-    #     try:
-    #         to_excel(project)
-    #         output_file = str(tmp_path / "final_pile_elevations.xlsx")
-    #         expected_file = str(root_dir / "Punchs creek Flat Tracker Imperial-2.xlsm")
-    #
-    #         diffs = compare_two_excel_columns_values_only(
-    #             excel_a=output_file,
-    #             sheet_a="Sheet1",
-    #             col_a="G",
-    #             start_row_a=21004,
-    #             excel_b=expected_file,
-    #             sheet_b="Calculations",
-    #             col_b="CP",
-    #             start_row_b=9,
-    #             decimals=6,
-    #             max_rows=None,
-    #         )
-    #
-    #         if diffs:
-    #             diff_msg = "\n".join(diffs[:20])
-    #             pytest.fail(
-    #                 f"Imperial-2 output mismatch ({len(diffs)} diffs):\n{diff_msg}"
-    #             )
-    #     finally:
-    #         os.chdir(original_dir)
 
     def test_load_project_works(self):
         """Test that load_project_from_excel works (testing_get_data.py logic)."""
@@ -384,8 +245,9 @@ class TestDataIO:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
 
         project = load_project_from_excel(
@@ -413,8 +275,9 @@ class TestDataIO:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
 
         project = load_project_from_excel(

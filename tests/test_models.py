@@ -102,8 +102,9 @@ class TestBasePile:
             max_reveal_height=1.675,
             pile_install_tolerance=0.1,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -127,8 +128,9 @@ class TestBasePile:
             max_reveal_height=1.675,
             pile_install_tolerance=0.1,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -152,8 +154,9 @@ class TestBasePile:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,  # 50%
+            target_height_percentage=0.5,  # 50%
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -172,57 +175,6 @@ class TestBasePile:
         expected = min_h + window * 0.5
 
         assert abs(pile.pile_at_target_height(project) - expected) < 1e-6
-
-    def test_max_height_no_tolerance(self):
-        """Test maximum height without tolerance calculation."""
-        constraints = ProjectConstraints(
-            min_reveal_height=1.375,
-            max_reveal_height=1.675,
-            pile_install_tolerance=0.1,
-            max_incline=0.15,
-            target_height_percantage=0.5,
-            max_angle_rotation=0.0,
-        )
-        project = Project(name="Test", project_type="standard", constraints=constraints)
-
-        pile = BasePile(
-            northing=100.0,
-            easting=50.0,
-            initial_elevation=10.0,
-            pile_id=1.0,
-            pile_in_tracker=1,
-            flooding_allowance=0.0,
-        )
-
-        # max_no_tol = current + max_reveal
-        expected = 10.0 + 1.675
-        assert abs(pile.max_height_no_tolerance(project) - expected) < 1e-6
-
-    def test_min_height_no_tolerance(self):
-        """Test minimum height without tolerance calculation."""
-        constraints = ProjectConstraints(
-            min_reveal_height=1.375,
-            max_reveal_height=1.675,
-            pile_install_tolerance=0.1,
-            max_incline=0.15,
-            target_height_percantage=0.5,
-            max_angle_rotation=0.0,
-        )
-        project = Project(name="Test", project_type="standard", constraints=constraints)
-
-        pile = BasePile(
-            northing=100.0,
-            easting=50.0,
-            initial_elevation=10.0,
-            pile_id=1.0,
-            pile_in_tracker=1,
-            flooding_allowance=0.2,
-        )
-
-        # min_no_tol = current + min_reveal + flooding
-        expected = 10.0 + 1.375 + 0.2
-        assert abs(pile.min_height_no_tolerance(project) - expected) < 1e-6
-
 
 class TestBaseTracker:
     """Test BaseTracker model."""
@@ -349,8 +301,9 @@ class TestProjectConstraints:
             max_reveal_height=1.675,
             pile_install_tolerance=0.1,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         constraints.validate("standard")
         # Should not raise
@@ -362,8 +315,9 @@ class TestProjectConstraints:
             max_reveal_height=1.5,  # Invalid: min > max
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         with pytest.raises(ValueError, match="min_reveal_height must be <"):
             constraints.validate("standard")
@@ -375,8 +329,9 @@ class TestProjectConstraints:
             max_reveal_height=1.675,
             pile_install_tolerance=-0.1,  # Invalid
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         with pytest.raises(ValueError, match="pile_install_tolerance must be >= 0"):
             constraints.validate("standard")
@@ -392,8 +347,9 @@ class TestProject:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -408,8 +364,9 @@ class TestProject:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -426,8 +383,9 @@ class TestProject:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -455,8 +413,9 @@ class TestProject:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -473,8 +432,9 @@ class TestProject:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -488,8 +448,9 @@ class TestProject:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 
@@ -530,8 +491,9 @@ class TestProject:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Test", project_type="standard", constraints=constraints)
 

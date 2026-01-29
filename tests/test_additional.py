@@ -24,8 +24,9 @@ class TestFullTrackerValidation:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Full_Tracker_Test", project_type="standard", constraints=constraints)
 
@@ -125,8 +126,9 @@ class TestBoundaryPiles:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Boundary_Test", project_type="standard", constraints=constraints)
 
@@ -186,8 +188,9 @@ class TestMaxInclineEnforcement:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,  # 15% max slope
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Incline_Test", project_type="standard", constraints=constraints)
 
@@ -237,8 +240,9 @@ class TestGradingWindowEdgeCases:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Window_Test", project_type="standard", constraints=constraints)
 
@@ -316,8 +320,9 @@ class TestDataIntegrity:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Data_Integrity_Test", project_type="standard", constraints=constraints)
 
@@ -411,8 +416,9 @@ class TestNegativeScenarios:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Negative_Test", project_type="standard", constraints=constraints)
 
@@ -492,8 +498,9 @@ class TestImpossibleConstraints:
             max_reveal_height=1.675,
             pile_install_tolerance=0.2,  # Tolerance = 0.2
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(
             name="Impossible_Constraints_Test", project_type="standard", constraints=constraints
@@ -564,8 +571,9 @@ class TestImpossibleConstraints:
             max_reveal_height=1.675,
             pile_install_tolerance=0.3,  # Equals window size
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(name="Zero_Window_Test", project_type="standard", constraints=constraints)
 
@@ -637,8 +645,9 @@ class TestImpossibleConstraints:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,  # No tolerance
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(
             name="Flooding_Exceeds_Window", project_type="standard", constraints=constraints
@@ -689,8 +698,9 @@ class TestNonZeroTolerance:
             max_reveal_height=1.675,
             pile_install_tolerance=0.1,  # 0.1 unit tolerance
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Tolerance_01_Test", project_type="standard", constraints=constraints)
 
@@ -702,8 +712,9 @@ class TestNonZeroTolerance:
             max_reveal_height=1.675,
             pile_install_tolerance=0.2,  # 0.2 unit tolerance
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         return Project(name="Tolerance_02_Test", project_type="standard", constraints=constraints)
 
@@ -869,8 +880,9 @@ class TestNonZeroTolerance:
             max_reveal_height=1.675,
             pile_install_tolerance=0.28,  # Nearly eliminates window
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(
             name="Narrow_Window_Test", project_type="standard", constraints=constraints
@@ -907,8 +919,9 @@ class TestNonZeroTolerance:
             max_reveal_height=1.675,
             pile_install_tolerance=0.0,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project_zero = Project(
             name="Zero_Tolerance", project_type="standard", constraints=constraints_zero
@@ -920,8 +933,9 @@ class TestNonZeroTolerance:
             max_reveal_height=1.675,
             pile_install_tolerance=0.1,
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project_01 = Project(
             name="01_Tolerance", project_type="standard", constraints=constraints_01
@@ -971,8 +985,9 @@ class TestNonZeroTolerance:
             max_reveal_height=1.675,
             pile_install_tolerance=0.05,  # 0.05m tolerance
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(
             name="Realistic_Tolerance", project_type="standard", constraints=constraints
@@ -1024,8 +1039,9 @@ class TestToleranceEdgeCases:
             max_reveal_height=1.675,
             pile_install_tolerance=0.001,  # 1mm tolerance
             max_incline=0.15,
-            target_height_percantage=0.5,
+            target_height_percentage=0.5,
             max_angle_rotation=0.0,
+            edge_overhang=0.0,
         )
         project = Project(
             name="Tiny_Tolerance_Test", project_type="standard", constraints=constraints

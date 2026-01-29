@@ -265,7 +265,6 @@ export default function RunAnalysis() {
         const xv = toNum(x[i]);
         const yv = toNum(y[i]);
         const zv = toNum(zLS[i]);
-
         if (f && p && xv !== null && yv !== null && zv !== null) {
           const pileId = parseFloat(`${f}.${p.padStart(2, "0")}`);
 
@@ -298,7 +297,7 @@ export default function RunAnalysis() {
           max_reveal_height: parseFloat(params.maxPileReveal),
           pile_install_tolerance: parseFloat(params.installationTolerance),
           max_incline: parseFloat(params.maxIncline),
-          target_height_percantage: 0.5,
+          target_height_percentage: 0.5,
           max_angle_rotation: 0.0,
           tracker_edge_overhang: params.trackerEdgeOverhang ? parseFloat(params.trackerEdgeOverhang) : 0.0,
           max_segment_deflection_deg: segDefDeg,
@@ -561,7 +560,7 @@ export default function RunAnalysis() {
             <div className="ra-chipLabel">Points</div>
             <div className="ra-chipValue">{pointCount.toLocaleString()}</div>
           </div>
-         
+
         </div>
 
         {error && <div className="ra-alert ra-alertError">{error}</div>}
@@ -710,20 +709,20 @@ export default function RunAnalysis() {
                         size: markerSize,
                         color: gradingResults
                           ? xNum.map((_, i) => {
-                              const cd = customData[i];
-                              const tid = parseInt(cd.frame);
-                              const status = trackerStatusMap.get(tid);
-                              if (status === "violation") return "#FF4D4D";
-                              if (status === "graded") return "#FF9800";
-                              return "#00C853";
-                            })
+                            const cd = customData[i];
+                            const tid = parseInt(cd.frame);
+                            const status = trackerStatusMap.get(tid);
+                            if (status === "violation") return "#FF4D4D";
+                            if (status === "graded") return "#FF9800";
+                            return "#00C853";
+                          })
                           : "#FFD400",
 
                         line: groupByTracker
                           ? {
-                              width: markerOutlineWidth,
-                              color: xNum.map((_, i) => frameStyle(customData[i]?.frame).lineColor),
-                            }
+                            width: markerOutlineWidth,
+                            color: xNum.map((_, i) => frameStyle(customData[i]?.frame).lineColor),
+                          }
                           : { width: 0, color: "rgba(0,0,0,0)" },
 
                         symbol: groupByTracker
