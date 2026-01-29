@@ -18,36 +18,28 @@ def load_project_from_excel(
     project_name: str,
     project_type: str,
     constraints: ProjectConstraints,
+    with_shading: bool = False,
 ) -> Project:
     """
     Initialise a Project from an Excel sheet containing tracker + pile rows.
 
-    Expected Excel columns (1-indexed as you described):
+    Expected Excel columns (1-indexed):
       - Col 1: tracker number
       - Col 3: pile in tracker
       - Col 4: easting
       - Col 5: northing
       - Col 9: ground elevation (initial_elevation)
-
-    Pile ID is constructed as "tracker_number.pile_in_tracker" (string).
-    Flooding allowance is set to 0 for all piles.
     """
-    # Read raw sheet (no header assumptions)
     df = pd.read_excel(excel_path, sheet_name=sheet_name, header=0)
 
-    # Drop rows where tracker number is not numeric (e.g. headers like "Table")
     df = df[pd.to_numeric(df.iloc[:, 0], errors="coerce").notna()]
 
-    # If your sheet has headers, we still use positional indexing by column number.
-    # Convert to 0-based indexes:
-    # col1->0, col3->2, col4->3, col5->4, col9->8
     tracker_col = df.columns[0]
     pile_in_tracker_col = df.columns[2]
     easting_col = df.columns[3]
     northing_col = df.columns[4]
     elevation_col = df.columns[8]
 
-    # Drop rows missing essential fields (common with blank separators)
     df = df.dropna(
         subset=[
             tracker_col,
@@ -60,8 +52,9 @@ def load_project_from_excel(
 
     project = Project(
         name=project_name,
-        project_type=project_type,  # e.g. "standard"
+        project_type=project_type,
         constraints=constraints,
+        with_shading=with_shading,
     )
 
     trackers_by_id: Dict[int, BaseTracker] = {}
@@ -76,11 +69,9 @@ def load_project_from_excel(
         northing = float(row[northing_col])
         ground_z = float(row[elevation_col])
 
-        # Create tracker if needed
         if tracker_num not in trackers_by_id:
             trackers_by_id[tracker_num] = BaseTracker(tracker_id=tracker_num)
 
-        # pile_id = float(f"{tracker_num}.{pit}")  # REAL ONE
         pile_id = piles  # REMOVE LATER TESTING ONLY
 
         trackers_by_id[tracker_num].piles.append(
@@ -88,13 +79,12 @@ def load_project_from_excel(
                 northing=northing,
                 easting=easting,
                 initial_elevation=ground_z,
-                pile_id=pile_id,  # NOTE: string id
+                pile_id=pile_id,
                 pile_in_tracker=pit,
                 flooding_allowance=0.0,
             )
         )
 
-    # Attach trackers in numeric order and sort their piles
     for tid in sorted(trackers_by_id.keys()):
         t = trackers_by_id[tid]
         t.sort_by_pole_position()

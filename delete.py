@@ -23,7 +23,7 @@ def run_shading_demo() -> None:
         max_incline=0.10,
         max_angle_rotation=60.0,
         edge_overhang=0.3,
-        azimuth_deg=80.0,  # south-facing sun
+        azimuth_deg=120.0,  # south-facing sun
         sun_angle_deg=35.0,  # solar altitude
         zenith_deg=55.0,
         pitch=5.8,
@@ -69,7 +69,7 @@ def run_shading_demo() -> None:
     print(f"Azimuth (deg):           {ns.azimuth:.1f}")
     print(f"Sun angle (deg):         {ns.sun_angle:.1f}")
     print(f"Pitch (m):               {ns.pitch:.2f}")
-    print(f"NS shadow length (m):    {ns_shadow:.3f}")
+    print(f"NS shadow length (mm):   {ns_shadow:.3f}")
     print(f"Max height diff (m):     {ns_height_diff:.3f}")
     print(f"NS slope (%):            {ns_slope:.3f}")
 
@@ -88,7 +88,7 @@ def run_shading_demo() -> None:
     print(f"Zenith (deg):                  {constraints.zenith_deg:.1f}")
     print(f"Pitch (m):                     {constraints.pitch:.2f}")
     print(f"Module length (m):             {constraints.module_length:.2f}")
-    print(f"EW shadow length (m):          {ew_results['shadow_length_m']:.3f}")
+    print(f"EW shadow length (mm):         {ew_results['shadow_length_m']:.3f}")
     print(f"Max tracking angle (deg):      {ew_results['max_tracking_angle_deg']:.2f}")
     print(f"Module height diff (m):        {ew_results['max_module_height_diff_m']:.3f}")
     print(f"Tracker module gap (m):        {ew_results['tracker_module_gap_m']:.3f}")

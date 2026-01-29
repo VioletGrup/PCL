@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from PCL.ProjectConstraints import ShadingConstraints
+from ProjectConstraints import ShadingConstraints
 
 
 @dataclass
@@ -40,8 +40,8 @@ class EastWest:
         return self.constraints.tracker_axis_angle
 
     def ew_shadow_length(self) -> float:  # metres
-        max_shadow_length_mm = 1000 / math.tan(math.radians(self.sun_angle))
-        return math.cos(math.radians(90 - self.azimuth)) * (max_shadow_length_mm / 1000)
+        max_shadow_length_mm = 1000 / math.tan((self.sun_angle))
+        return abs(math.cos((90 - self.azimuth) * (math.pi / 180)) * (max_shadow_length_mm / 1000))
 
     def max_tracking_angle(self) -> float:  # degrees
         return abs(

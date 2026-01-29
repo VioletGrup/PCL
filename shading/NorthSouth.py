@@ -4,7 +4,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from PCL.ProjectConstraints import ProjectConstraints, ShadingConstraints
+from ProjectConstraints import ProjectConstraints, ShadingConstraints
 
 
 @dataclass
@@ -28,11 +28,13 @@ class NorthSouth:
         return self.constraints.min_gap_btwn_end_modules
 
     def ns_shadow_length(self) -> float:  # millimeters
-        max_shadow_length = 1000 / (math.tan(self.sun_angle))
+        max_shadow_length = 1000 / (math.tan((self.sun_angle)))
         return abs(math.sin((90 - self.azimuth) * (math.pi / 180)) * (max_shadow_length / 1000))
 
     def max_height_diff(self) -> float:  # metres
         ns_shadow_length = self.ns_shadow_length()
+        if ns_shadow_length == 0:
+            ns_shadow_length = 1e-12  # stop division by zero
         max_module_height_diff = self.min_gap_btwn_end_modules / ns_shadow_length
         return abs(max_module_height_diff)
 
