@@ -71,3 +71,20 @@ class EastWest:
 
     def max_slope_percentage(self) -> float:  # %
         return (self.max_ew_pile_height_difference() * 100) / self.pitch
+
+    def full_ew(self) -> dict[str, float]:
+        shadow_length = self.ew_shadow_length()
+        max_tracking_angle = self.max_tracking_angle()
+        max_module_height_diff = self.max_module_height_diff()
+        tracker_module_gap = self.tracker_module_gap()
+        max_pile_height_diff = self.max_pile_height_diff()
+        max_slope = self.ew_slope()
+
+        return {
+            "shadow_length_m": shadow_length,
+            "max_tracking_angle_deg": max_tracking_angle,
+            "max_module_height_diff_m": max_module_height_diff,
+            "tracker_module_gap_m": tracker_module_gap,
+            "max_pile_height_diff_m": max_pile_height_diff,
+            "max_slope_percent": max_slope,
+        }

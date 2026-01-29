@@ -38,3 +38,14 @@ class NorthSouth:
 
     def ns_slope(self) -> float:  # percentage
         return abs((self.max_height_diff() * 100) / self.min_gap_btwn_end_modules)
+
+    def full_ns(self) -> dict[str, float]:
+        shadow_length = self.ns_shadow_length()
+        max_height_diff = self.max_height_diff()
+        max_slope = self.ns_slope()
+
+        return {
+            "shadow_length_m": shadow_length,
+            "max_height_diff_m": max_height_diff,
+            "max_slope_percent": max_slope,
+        }
