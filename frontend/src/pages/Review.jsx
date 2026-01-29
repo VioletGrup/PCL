@@ -250,17 +250,46 @@ export default function Review() {
     setStatus("");
     hideStatusOverlay();
 
-    // 1. restore mapping letters if saved (always useful)
+    // ✅ NEW: If coming from CustomUploads, prefer mapping letters passed in navigation state.
+    // This is the ONLY behavior change; everything else stays the same.
+    const incomingMapping = state?.mappingLetters || null; // { frameCol, poleCol, xCol, yCol, zCol }
+
+    // 1. restore mapping letters (priority: state -> localStorage -> defaults)
+    let initial = {
+      frame: "A",
+      pole: "C",
+      x: "D",
+      y: "E",
+      z: "I",
+    };
+
+    // from localStorage (existing behavior)
     try {
       const saved = JSON.parse(localStorage.getItem("pcl_mapping_letters") || "null");
-      if (saved?.frame) setFrameCol(String(saved.frame).toUpperCase());
-      if (saved?.pole) setPoleCol(String(saved.pole).toUpperCase());
-      if (saved?.x) setXCol(String(saved.x).toUpperCase());
-      if (saved?.y) setYCol(String(saved.y).toUpperCase());
-      if (saved?.z) setZCol(String(saved.z).toUpperCase());
+      if (saved?.frame) initial.frame = String(saved.frame).toUpperCase();
+      if (saved?.pole) initial.pole = String(saved.pole).toUpperCase();
+      if (saved?.x) initial.x = String(saved.x).toUpperCase();
+      if (saved?.y) initial.y = String(saved.y).toUpperCase();
+      if (saved?.z) initial.z = String(saved.z).toUpperCase();
     } catch {
       // ignore
     }
+
+    // override with custom-upload mapping if provided
+    if (incomingMapping) {
+      if (incomingMapping.frameCol) initial.frame = String(incomingMapping.frameCol).toUpperCase();
+      if (incomingMapping.poleCol) initial.pole = String(incomingMapping.poleCol).toUpperCase();
+      if (incomingMapping.xCol) initial.x = String(incomingMapping.xCol).toUpperCase();
+      if (incomingMapping.yCol) initial.y = String(incomingMapping.yCol).toUpperCase();
+      if (incomingMapping.zCol) initial.z = String(incomingMapping.zCol).toUpperCase();
+    }
+
+    // push into UI inputs immediately
+    setFrameCol(initial.frame);
+    setPoleCol(initial.pole);
+    setXCol(initial.x);
+    setYCol(initial.y);
+    setZCol(initial.z);
 
     // 2. PRIORITY: If we have a file in state, it's a new upload. Extract from it.
     const bomFile = state?.bomFile || null;
@@ -269,12 +298,14 @@ export default function Review() {
         try {
           showStatusOverlay("Loading sheet…", "info");
 
+          // ✅ IMPORTANT: use the computed `initial` letters here (not React state),
+          // so it works perfectly even though setState is async.
           const idx = {
-            frame: letterToColIndex(frameCol) ?? 0, // A
-            pole: letterToColIndex(poleCol) ?? 2, // C
-            x: letterToColIndex(xCol) ?? 3, // D
-            y: letterToColIndex(yCol) ?? 4, // E
-            z: letterToColIndex(zCol) ?? 8, // I
+            frame: letterToColIndex(initial.frame) ?? 0, // A
+            pole: letterToColIndex(initial.pole) ?? 2, // C
+            x: letterToColIndex(initial.x) ?? 3, // D
+            y: letterToColIndex(initial.y) ?? 4, // E
+            z: letterToColIndex(initial.z) ?? 8, // I
           };
 
           const { matchedSheetName, outFrame, outPole, outX, outY, outZ, isFallback } =
