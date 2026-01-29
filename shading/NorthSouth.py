@@ -45,7 +45,7 @@ class NorthSouth:
         max_slope = self.ns_slope()
 
         return {
-            "shadow_length_m": shadow_length,
-            "max_height_diff_m": max_height_diff,
-            "max_slope_percent": max_slope,
+            "ns_max_shadow_length": shadow_length,
+            "ns_max_height_diff": max_height_diff,
+            "ns_max_slope": max_slope,
         }

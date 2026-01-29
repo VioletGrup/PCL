@@ -8,6 +8,7 @@ from .ProjectConstraints import ProjectConstraints
 from .TerrainFollowingPile import TerrainFollowingPile
 from .TerrainFollowingTracker import TerrainFollowingTracker
 from .testing_get_data_tf import load_project_from_excel, to_excel
+from shading.shadingAnalysis import main as shading_requirements
 
 
 def _total_grading_cost(violating_piles: list[dict[str, float]]) -> float:
@@ -527,6 +528,10 @@ def main(project: Project) -> None:
     project : Project
         Project containing trackers and grading constraints.
     """
+
+    if project.with_shading:
+        ns_requirements, ew_requirements = shading_requirements(project)
+
     for tracker in project.trackers:
         # determine the grading window for the tracker
         window = grading_window(project, tracker)
