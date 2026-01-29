@@ -24,11 +24,6 @@ class TrackerABC(ABC):
         """Total number of piles in this tracker."""
         return len(self.piles)
 
-    @property
-    def tracker_length(self) -> float:
-        """Return the total length of the tracker"""  # overhangs?
-        raise NotImplementedError("This function is not yet implemented.")
-
     def get_xyz(self) -> Tuple[list[float], list[float], list[float]]:
         """Return X, Y, Z arrays for plotting or analysis."""
         xs = [p.X for p in self.piles]

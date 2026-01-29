@@ -23,6 +23,7 @@ class Project:
     name: str
     project_type: ProjectType
     constraints: ProjectConstraints
+    with_shading: bool = False
 
     trackers: list[TrackerABC] = field(default_factory=list)
 
@@ -36,6 +37,22 @@ class Project:
             self._tracker_cls = TrackerABC  # type: ignore[assignment]
         else:
             self._tracker_cls = TerrainFollowingTracker  # type: ignore[assignment]
+
+    def validate(self) -> None:
+        # Keep constraints flag aligned
+        self.constraints.with_shading = self.with_shading
+
+        # Enforce correct class usage
+        if self.with_shading and not isinstance(self.constraints, ShadingConstraints):
+            raise ValueError(
+                "Project.with_shading=True requires constraints to be ShadingConstraints."
+            )
+        if not self.with_shading and isinstance(self.constraints, ShadingConstraints):
+            raise ValueError(
+                "Project.with_shading=False requires constraints to be ProjectConstraints."
+            )
+
+        self.constraints.validate(self.project_type)
 
     def new_tracker(self, tracker_id: int) -> TrackerABC:
         """Create a correctly-typed tracker for this project."""
@@ -72,9 +89,7 @@ class Project:
             return 0.0
 
         assert self.constraints.max_cumulative_deflection_deg is not None
-        return math.tan(
-            (self.constraints.max_cumulative_deflection_deg * math.pi) / 180
-        )
+        return math.tan((self.constraints.max_cumulative_deflection_deg * math.pi) / 180)
 
     @property
     def max_segment_slope_change(self) -> float:
@@ -147,9 +162,7 @@ class Project:
         return self.get_tracker_by_id(tracker_id).get_pile_in_tracker(pile_in_tracker)
         # raises ValueError if not found
 
-    def get_trackers_on_easting(
-        self, easting: float, ignore_ids: list[int]
-    ) -> list[TrackerABC]:
+    def get_trackers_on_easting(self, easting: float, ignore_ids: list[int]) -> list[TrackerABC]:
         """Returns all the trackers with the same easting"""
         same_easting = []
         for tracker in self.trackers:
@@ -162,6 +175,4 @@ class Project:
     def get_tracker_length(self, tracker_id: int) -> float:
         """Returns the length of a given tracker, including the overhangs off the edge piles"""
         tracker = self.get_tracker_by_id(tracker_id)
-        return tracker.distance_first_to_last_pile + (
-            self.constraints.edge_overhang * 2
-        )
+        return tracker.distance_first_to_last_pile + (self.constraints.edge_overhang * 2)

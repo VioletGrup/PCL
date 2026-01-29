@@ -9,22 +9,22 @@ from pydantic import BaseModel, Field
 # Add repo root to path so we can import modules from /PCL
 sys.path.append(str(Path(__file__).parent.parent.parent))
 
-import flatTrackerGrading
+from PCL import flatTrackerGrading
 
 # Base (flat) classes
-from BasePile import BasePile
-from BaseTracker import BaseTracker
-from Project import Project
-from ProjectConstraints import ProjectConstraints
+from PCL.BasePile import BasePile
+from PCL.BaseTracker import BaseTracker
+from PCL.Project import Project
+from PCL.ProjectConstraints import ProjectConstraints
 
 # XTR / terrain-following classes
 try:
-    from TerrainFollowingTracker import TerrainFollowingTracker
+    from PCL.TerrainFollowingTracker import TerrainFollowingTracker
 except Exception:
     TerrainFollowingTracker = None
 
 try:
-    from TerrainFollowingPile import TerrainFollowingPile
+    from PCL.TerrainFollowingPile import TerrainFollowingPile
 except Exception:
     TerrainFollowingPile = None
 

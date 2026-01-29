@@ -30,8 +30,11 @@ export default function RunAnalysis() {
   const [legendOpen, setLegendOpen] = useState(true);
   const PAGE_SIZE = 100;
 
-  // ✅ NEW: pile jump input (bottom)
+  // pile jump input (bottom)
   const [pileJump, setPileJump] = useState("");
+
+  // toggle to visually group poles by tracker/frame
+  const [groupByTracker, setGroupByTracker] = useState(false);
 
   // Helpers
   const toNum = (v) => {
@@ -50,7 +53,6 @@ export default function RunAnalysis() {
     return s;
   };
 
-  // ✅ Convert slope change (%) -> deflection degrees (atan(%/100))
   const pctToDeg = (pct) => {
     const n = toNum(pct);
     if (n === null) return null;
@@ -58,19 +60,11 @@ export default function RunAnalysis() {
     return (radians * 180) / Math.PI;
   };
 
-  // ✅ NEW: normalize user pile id input like "12.3" -> 12.03 (two digits)
   const normalizePileId = (raw) => {
     const s = String(raw ?? "").trim();
     if (!s) return null;
 
-    // allow "12", "12.3", "12.03"
-    if (!s.includes(".")) {
-      const whole = Number(s);
-      if (!Number.isFinite(whole)) return null;
-      // default to ".01"? no. If no pole given, can't uniquely identify a pile.
-      // We'll treat it as invalid because pile_id needs tracker.pole
-      return null;
-    }
+    if (!s.includes(".")) return null;
 
     const [a, b = ""] = s.split(".");
     if (!a) return null;
@@ -81,17 +75,54 @@ export default function RunAnalysis() {
     const poleRaw = b.replace(/[^\d]/g, "");
     if (!poleRaw) return null;
 
-    const pole2 = poleRaw.padStart(2, "0").slice(-2); // last two digits
+    const pole2 = poleRaw.padStart(2, "0").slice(-2);
     const id = `${Math.trunc(tracker)}.${pole2}`;
     const parsed = Number(id);
     return Number.isFinite(parsed) ? parsed : null;
   };
 
-  // ✅ NEW: find pile robustly by rounding to 2dp
   const findPileById = (piles, pileIdNum) => {
     const target = Math.round(pileIdNum * 100);
     return piles.find((p) => Math.round(Number(p.pile_id) * 100) === target) || null;
   };
+
+  // Grouping style (outline + symbol) by FRAME
+  const FRAME_OUTLINE_PALETTE = [
+    "#0B5B3F",
+    "#F2C300",
+    "#2563EB",
+    "#7C3AED",
+    "#14B8A6",
+    "#F97316",
+    "#DB2777",
+    "#06B6D4",
+    "#22C55E",
+    "#A3E635",
+  ];
+
+  const FRAME_SYMBOLS = ["circle", "square", "diamond", "triangle-up", "cross", "x"];
+
+  const hashStr = (s) => {
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h;
+  };
+
+  const frameStyle = (frameStr) => {
+    const s = String(frameStr ?? "");
+    if (!s || s === "—") return { lineColor: "rgba(15,23,42,0.45)", symbol: "circle" };
+
+    const n = Number(s);
+    const key = Number.isFinite(n) ? Math.abs(Math.trunc(n)) : hashStr(s);
+
+    return {
+      lineColor: FRAME_OUTLINE_PALETTE[key % FRAME_OUTLINE_PALETTE.length],
+      symbol: FRAME_SYMBOLS[key % FRAME_SYMBOLS.length],
+    };
+  };
+
+  const markerSize = groupByTracker ? 6 : 4;
+  const markerOutlineWidth = groupByTracker ? 1.8 : 0;
 
   useEffect(() => {
     setError("");
@@ -108,14 +139,16 @@ export default function RunAnalysis() {
       const yLS = JSON.parse(localStorage.getItem("pcl_columns_y") || "[]");
 
       if (
-        !Array.isArray(frameLS) || !frameLS.length ||
-        !Array.isArray(poleLS) || !poleLS.length ||
-        !Array.isArray(xLS) || !xLS.length ||
-        !Array.isArray(yLS) || !yLS.length
+        !Array.isArray(frameLS) ||
+        !frameLS.length ||
+        !Array.isArray(poleLS) ||
+        !poleLS.length ||
+        !Array.isArray(xLS) ||
+        !xLS.length ||
+        !Array.isArray(yLS) ||
+        !yLS.length
       ) {
-        setError(
-          "Missing Frame/Pole/X/Y data. Go back to Review and ensure Frame + Pole + X + Y columns are loaded."
-        );
+        setError("Missing Frame/Pole/X/Y data. Go back to Review and ensure Frame + Pole + X + Y columns are loaded.");
         return;
       }
 
@@ -124,16 +157,13 @@ export default function RunAnalysis() {
       setX(xLS);
       setY(yLS);
 
-      // Restore grading results if coming back from FramePage / PileView
-      if (state?.gradingResults) {
-        setGradingResults(state.gradingResults);
-      }
+      if (state?.gradingResults) setGradingResults(state.gradingResults);
     } catch {
       setError("Failed to load data. Go back to Review and try again.");
     }
   }, [state]);
 
-  // Build fast arrays for Plotly (one trace)
+  // Build fast arrays for Plotly
   const { xNum, yNum, customData, pointCount, dropped } = useMemo(() => {
     const n = Math.min(frame.length, pole.length, x.length, y.length);
 
@@ -156,7 +186,12 @@ export default function RunAnalysis() {
 
       xx.push(xv);
       yy.push(yv);
-      cd.push({ frame: f, pole: p, label: `${f}.${p}` });
+      cd.push({
+        frame: f,
+        pole: p,
+        label: `${f}.${p}`,
+        frameLabel: `${f}`, // ✅ used when grouped mode ON
+      });
     }
 
     return {
@@ -230,7 +265,6 @@ export default function RunAnalysis() {
         const xv = toNum(x[i]);
         const yv = toNum(y[i]);
         const zv = toNum(zLS[i]);
-
         if (f && p && xv !== null && yv !== null && zv !== null) {
           const pileId = parseFloat(`${f}.${p.padStart(2, "0")}`);
 
@@ -245,9 +279,7 @@ export default function RunAnalysis() {
         }
       }
 
-      if (piles.length === 0) {
-        throw new Error("No valid piles found to grade.");
-      }
+      if (piles.length === 0) throw new Error("No valid piles found to grade.");
 
       const params = JSON.parse(localStorage.getItem("pcl_parameters") || "{}");
 
@@ -267,9 +299,7 @@ export default function RunAnalysis() {
           max_incline: parseFloat(params.maxIncline),
           target_height_percentage: 0.5,
           max_angle_rotation: 0.0,
-
           tracker_edge_overhang: params.trackerEdgeOverhang ? parseFloat(params.trackerEdgeOverhang) : 0.0,
-
           max_segment_deflection_deg: segDefDeg,
           max_cumulative_deflection_deg: cumDefDeg,
         },
@@ -288,9 +318,6 @@ export default function RunAnalysis() {
 
       const result = await res.json();
       setGradingResults(result);
-
-      // ✅ OPTIONAL (recommended): persist so PileView can survive refresh if you want later
-      // localStorage.setItem("pcl_last_grading_results", JSON.stringify(result));
     } catch (e) {
       setError(e.message || "Grading failed");
     } finally {
@@ -360,17 +387,13 @@ export default function RunAnalysis() {
       const tid = Math.floor(p.pile_id);
       if (statusMap.get(tid) === "violation") return;
 
-      if (Math.abs(p.cut_fill) > 0.0001) {
-        statusMap.set(tid, "graded");
-      } else if (!statusMap.has(tid)) {
-        statusMap.set(tid, "ok");
-      }
+      if (Math.abs(p.cut_fill) > 0.0001) statusMap.set(tid, "graded");
+      else if (!statusMap.has(tid)) statusMap.set(tid, "ok");
     });
 
     return statusMap;
   }, [gradingResults]);
 
-  // Categorize and filter trackers for the sidebar
   const { filteredGraded, filteredAll, totalAllCount, pages } = useMemo(() => {
     if (!gradingResults) return { filteredGraded: [], filteredAll: [], totalAllCount: 0, pages: [] };
 
@@ -379,9 +402,7 @@ export default function RunAnalysis() {
       (a, b) => a - b
     );
 
-    const matchedTrackers = uniqueTrackers.filter((tid) => {
-      return !search || tid.toString().includes(search);
-    });
+    const matchedTrackers = uniqueTrackers.filter((tid) => !search || tid.toString().includes(search));
 
     const graded = matchedTrackers.filter((tid) => {
       const status = trackerStatusMap.get(tid);
@@ -406,12 +427,7 @@ export default function RunAnalysis() {
       finalAll = matchedTrackers.slice(startIdx, startIdx + PAGE_SIZE);
     }
 
-    return {
-      filteredGraded: graded,
-      filteredAll: finalAll,
-      totalAllCount: total,
-      pages: pageList,
-    };
+    return { filteredGraded: graded, filteredAll: finalAll, totalAllCount: total, pages: pageList };
   }, [gradingResults, trackerStatusMap, sidebarSearch, okPage]);
 
   const handleTrackerClick = (tid) => {
@@ -442,7 +458,6 @@ export default function RunAnalysis() {
     });
   };
 
-  // ✅ NEW: jump to pile page
   const goToPile = () => {
     if (!gradingResults || !gradingResults.piles) {
       alert("Run grading first, then you can jump to a pile.");
@@ -473,7 +488,7 @@ export default function RunAnalysis() {
         fileName,
         sheetName,
         trackerType,
-        gradingResults, // keep for back nav + context
+        gradingResults,
       },
     });
   };
@@ -500,6 +515,14 @@ export default function RunAnalysis() {
             <Link to="/parameters" className="ra-navLink">
               ← Back
             </Link>
+
+            <button
+              className={`ra-btn ${groupByTracker ? "ra-btnSuccess" : ""}`}
+              onClick={() => setGroupByTracker((v) => !v)}
+              title="When ON: same Frame shares the same marker outline + symbol"
+            >
+              {groupByTracker ? "Show Piles" : "Group by Tracker"}
+            </button>
 
             <button
               className="ra-btn ra-btnPrimary"
@@ -537,10 +560,7 @@ export default function RunAnalysis() {
             <div className="ra-chipLabel">Points</div>
             <div className="ra-chipValue">{pointCount.toLocaleString()}</div>
           </div>
-          <div className="ra-chip">
-            <div className="ra-chipLabel">Dropped</div>
-            <div className="ra-chipValue">{dropped.toLocaleString()}</div>
-          </div>
+
         </div>
 
         {error && <div className="ra-alert ra-alertError">{error}</div>}
@@ -645,9 +665,7 @@ export default function RunAnalysis() {
                     {filteredAll.length === 0 && <div className="ra-noResults">No matches</div>}
                   </div>
 
-                  {!sidebarSearch && pages.length > 1 && (
-                    <div className="ra-sidebarTip">Select a range above to see more</div>
-                  )}
+                  {!sidebarSearch && pages.length > 1 && <div className="ra-sidebarTip">Select a range above to see more</div>}
                 </div>
               </aside>
             )}
@@ -657,7 +675,15 @@ export default function RunAnalysis() {
                 <div>
                   <div className="ra-plotTitle">Site Layout (Easting (X) vs Northing (Y))</div>
                   <div className="ra-plotSub">
-                    Hover shows <strong>Frame.Pole</strong>. Click a point to open that frame.
+                    {groupByTracker ? (
+                      <>
+                        Hover shows <strong>Frame</strong> only. Click any point to open that frame.
+                      </>
+                    ) : (
+                      <>
+                        Hover shows <strong>Frame.Pole</strong>. Click a point to open that frame.
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -680,21 +706,34 @@ export default function RunAnalysis() {
                       y: yNum,
                       customdata: customData,
                       marker: {
-                        size: 4,
+                        size: markerSize,
                         color: gradingResults
                           ? xNum.map((_, i) => {
                             const cd = customData[i];
                             const tid = parseInt(cd.frame);
                             const status = trackerStatusMap.get(tid);
-
                             if (status === "violation") return "#FF4D4D";
                             if (status === "graded") return "#FF9800";
                             return "#00C853";
                           })
                           : "#FFD400",
-                        opacity: 0.85,
+
+                        line: groupByTracker
+                          ? {
+                            width: markerOutlineWidth,
+                            color: xNum.map((_, i) => frameStyle(customData[i]?.frame).lineColor),
+                          }
+                          : { width: 0, color: "rgba(0,0,0,0)" },
+
+                        symbol: groupByTracker
+                          ? xNum.map((_, i) => frameStyle(customData[i]?.frame).symbol)
+                          : "circle",
+
+                        opacity: 0.9,
                       },
-                      hovertemplate: "%{customdata.label}<extra></extra>",
+
+                      // ✅ KEY CHANGE: hover shows Frame only when grouped mode is ON
+                      hovertemplate: groupByTracker ? "Frame %{customdata.frame}<extra></extra>" : "%{customdata.label}<extra></extra>",
                       name: "Frame Locations",
                     },
                   ]}
@@ -774,12 +813,12 @@ export default function RunAnalysis() {
         )}
       </div>
 
-      {/* ✅ Footer: add pile jump input here */}
       {!error && (
         <footer className="ra-footer">
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             <div>
-              Hover shows Frame.Pole. Dropped non-numeric rows: <strong>{dropped.toLocaleString()}</strong>.
+              Hover shows {groupByTracker ? "Frame" : "Frame.Pole"}. Dropped non-numeric rows:{" "}
+              <strong>{dropped.toLocaleString()}</strong>.
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -810,7 +849,7 @@ export default function RunAnalysis() {
                   padding: "0 14px",
                   borderRadius: 10,
                   border: "1px solid rgba(255,255,255,0.20)",
-                  background: "rgba(242, 195, 0, 0.90)", // PCL-ish gold
+                  background: "rgba(242, 195, 0, 0.90)",
                   color: "#0b5b3f",
                   fontWeight: 900,
                   cursor: "pointer",
