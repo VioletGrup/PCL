@@ -1,7 +1,7 @@
 # backend/api/endpoints/grading.py
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -38,7 +38,7 @@ router = APIRouter()
 
 
 class PileInput(BaseModel):
-    pile_id: float
+    pile_id: Union[str, float]
     pile_in_tracker: int
     northing: float
     easting: float
@@ -82,7 +82,7 @@ class GradingRequest(BaseModel):
 
 
 class PileResult(BaseModel):
-    pile_id: float
+    pile_id: str
     pile_in_tracker: int
     northing: float
     easting: float
@@ -92,6 +92,7 @@ class PileResult(BaseModel):
     total_height: float
     cut_fill: float
     flooding_allowance: float = 0.0
+    final_degree_break: float = 0.0
 
 
 class GradingResponse(BaseModel):
@@ -104,6 +105,11 @@ class GradingResponse(BaseModel):
     success: bool
     message: str
     constraints: ConstraintsInput
+    
+    # XTR-only metrics from backend
+    north_wing_deflection: Optional[float] = None
+    south_wing_deflection: Optional[float] = None
+    max_tracker_degree_break: Optional[float] = None
 
 
 class ProjectGradingRequest(BaseModel):
@@ -120,6 +126,8 @@ class ProjectGradingResponse(BaseModel):
     success: bool
     message: str
     constraints: ConstraintsInput
+    # Map tracker_id (int) -> { north_wing_deflection, south_wing_deflection, max_tracker_degree_break }
+    tracker_metrics: Optional[dict] = None
 
 
 def _pick_classes(tracker_type: str):
@@ -228,11 +236,14 @@ async def grade_single_tracker(request: GradingRequest):
         tracker = TrackerCls(tracker_id=request.tracker_id)
 
         for pile_data in request.piles:
+            # Force standard ID format f"{tracker_id}.{pit:02d}"
+            normalized_id = f"{request.tracker_id}.{pile_data.pile_in_tracker:02d}"
+
             pile = PileCls(
                 northing=pile_data.northing,
                 easting=pile_data.easting,
                 initial_elevation=pile_data.initial_elevation,
-                pile_id=pile_data.pile_id,
+                pile_id=normalized_id,
                 pile_in_tracker=pile_data.pile_in_tracker,
                 flooding_allowance=pile_data.flooding_allowance,
             )
@@ -247,6 +258,17 @@ async def grade_single_tracker(request: GradingRequest):
         project.add_tracker(tracker)
 
         _run_grading(project, request.tracker_type)
+
+        # ✅ Calculate final deflection metrics if XTR
+        north_wing_deflection = None
+        south_wing_deflection = None
+        max_tracker_degree_break = None
+
+        if request.tracker_type == "xtr" and hasattr(tracker, "set_final_deflection_metrics"):
+            tracker.set_final_deflection_metrics()
+            north_wing_deflection = getattr(tracker, "north_wing_deflection", 0.0)
+            south_wing_deflection = getattr(tracker, "south_wing_deflection", 0.0)
+            max_tracker_degree_break = getattr(tracker, "max_tracker_degree_break", 0.0)
 
         # Results
         pile_results = []
@@ -285,10 +307,13 @@ async def grade_single_tracker(request: GradingRequest):
                         "limit": max_reveal_m - tolerance / 2,
                     }
                 )
+            
+            # Grab degree break if exists
+            p_break = getattr(pile, "final_degree_break", 0.0)
 
             pile_results.append(
                 PileResult(
-                    pile_id=pile.pile_id,
+                    pile_id=str(pile.pile_id),  # Ensure output is str
                     pile_in_tracker=pile.pile_in_tracker,
                     northing=pile.northing,
                     easting=pile.easting,
@@ -298,6 +323,7 @@ async def grade_single_tracker(request: GradingRequest):
                     total_height=pile.total_height,
                     cut_fill=cut_fill,
                     flooding_allowance=pile.flooding_allowance,
+                    final_degree_break=p_break,
                 )
             )
 
@@ -311,6 +337,9 @@ async def grade_single_tracker(request: GradingRequest):
             success=True,
             message=f"Successfully graded tracker {request.tracker_id}",
             constraints=request.constraints,
+            north_wing_deflection=north_wing_deflection,
+            south_wing_deflection=south_wing_deflection,
+            max_tracker_degree_break=max_tracker_degree_break,
         )
 
     except HTTPException:
@@ -354,18 +383,21 @@ async def grade_project(request: ProjectGradingRequest):
         # Group piles by tracker
         piles_by_tracker = {}
         for p in request.piles:
-            tracker_id = int(p.pile_id)
+            tracker_id = int(float(p.pile_id))
             piles_by_tracker.setdefault(tracker_id, []).append(p)
 
         # Create trackers and add piles
         for tid, piles in piles_by_tracker.items():
             tracker = TrackerCls(tracker_id=tid)
             for pile_data in piles:
+                # Force standard ID format f"{tracker_id}.{pit:02d}"
+                normalized_id = f"{tid}.{pile_data.pile_in_tracker:02d}"
+
                 pile = PileCls(
                     northing=pile_data.northing,
                     easting=pile_data.easting,
                     initial_elevation=pile_data.initial_elevation,
-                    pile_id=pile_data.pile_id,
+                    pile_id=normalized_id,
                     pile_in_tracker=pile_data.pile_in_tracker,
                     flooding_allowance=pile_data.flooding_allowance,
                 )
@@ -386,10 +418,22 @@ async def grade_project(request: ProjectGradingRequest):
         total_cut = 0.0
         total_fill = 0.0
         violations = []
+        tracker_metrics = {}
 
         min_reveal_m = request.constraints.min_reveal_height
         max_reveal_m = request.constraints.max_reveal_height
         tolerance = request.constraints.pile_install_tolerance
+
+        # ✅ Calculate metrics for each tracker if XTR
+        if request.tracker_type == "xtr":
+            for tracker in project.trackers:
+                if hasattr(tracker, "set_final_deflection_metrics"):
+                    tracker.set_final_deflection_metrics()
+                    tracker_metrics[tracker.tracker_id] = {
+                        "north_wing_deflection": getattr(tracker, "north_wing_deflection", 0.0),
+                        "south_wing_deflection": getattr(tracker, "south_wing_deflection", 0.0),
+                        "max_tracker_degree_break": getattr(tracker, "max_tracker_degree_break", 0.0),
+                    }
 
         for tracker in project.trackers:
             for pile in tracker.piles:
@@ -419,10 +463,13 @@ async def grade_project(request: ProjectGradingRequest):
                             "limit": max_reveal_m - tolerance / 2,
                         }
                     )
+                
+                # Grab degree break if exists
+                p_break = getattr(pile, "final_degree_break", 0.0)
 
                 pile_results.append(
                     PileResult(
-                        pile_id=pile.pile_id,
+                        pile_id=str(pile.pile_id), # Ensure output is str
                         pile_in_tracker=pile.pile_in_tracker,
                         northing=pile.northing,
                         easting=pile.easting,
@@ -432,6 +479,7 @@ async def grade_project(request: ProjectGradingRequest):
                         total_height=pile.total_height,
                         cut_fill=cut_fill,
                         flooding_allowance=pile.flooding_allowance,
+                        final_degree_break=p_break,
                     )
                 )
 
@@ -443,6 +491,7 @@ async def grade_project(request: ProjectGradingRequest):
             success=True,
             message=f"Successfully graded {len(project.trackers)} trackers",
             constraints=request.constraints,
+            tracker_metrics=tracker_metrics,
         )
 
     except HTTPException:

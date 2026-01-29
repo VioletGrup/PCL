@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import config from "../config";
 import "./GradingTool.css";
 
 export default function GradingTool() {
@@ -53,8 +53,8 @@ export default function GradingTool() {
     abortRef.current = new AbortController();
 
     try {
-      // ✅ Use 127.0.0.1 to match your backend docs host (and avoid hostname mismatch issues)
-      const res = await fetch("http://127.0.0.1:8000/api/fill-grading-tool", {
+      // ✅ Use config.API_BASE_URL to match your backend docs host
+      const res = await fetch(`${config.API_BASE_URL}/api/fill-grading-tool`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -83,9 +83,9 @@ export default function GradingTool() {
       const msg =
         e?.name === "AbortError"
           ? "Request cancelled."
-          : `Network error reaching backend. Confirm backend is running and accessible at http://127.0.0.1:8000.
-Try opening http://127.0.0.1:8000/docs in your browser.
-Also ensure CORS allows http://localhost:5173 and http://127.0.0.1:5173.`;
+          : `Network error reaching backend. Confirm backend is running and accessible at ${config.API_BASE_URL}.
+Try opening ${config.API_BASE_URL}/docs in your browser.
+Also ensure CORS allows http://localhost:5173.`;
 
       setError(msg);
       setStatus("error");
@@ -93,11 +93,11 @@ Also ensure CORS allows http://localhost:5173 and http://127.0.0.1:5173.`;
   }
 
   useEffect(() => {
-  return () => {
-    if (abortRef.current) abortRef.current.abort();
-    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
-  };
-}, [downloadUrl]);
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+      if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    };
+  }, [downloadUrl]);
 
   return (
     <div className="gt-shell">

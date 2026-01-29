@@ -410,24 +410,24 @@ export default function Parameters() {
               {trackerType === "xtr" && (
                 <>
                   <div className="pr-field">
-                    <label className="pr-label">Max segment slope change (%)</label>
+                    <label className="pr-label">Max segment slope change (deg)</label>
                     <input
                       className="pr-input"
                       type="number"
                       value={maxSegmentSlopeChange}
                       onChange={(e) => setMaxSegmentSlopeChange(e.target.value)}
-                      placeholder="e.g., 1.0"
+                      placeholder="e.g., 0.5"
                     />
                   </div>
 
                   <div className="pr-field">
-                    <label className="pr-label">Max cumulative slope change (%)</label>
+                    <label className="pr-label">Max cumulative slope change (deg)</label>
                     <input
                       className="pr-input"
                       type="number"
                       value={maxCumulativeSlopeChange}
                       onChange={(e) => setMaxCumulativeSlopeChange(e.target.value)}
-                      placeholder="e.g., 3.0"
+                      placeholder="e.g., 4.0"
                     />
                   </div>
                 </>
