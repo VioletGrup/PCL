@@ -157,15 +157,26 @@ export default function FramePage() {
           </div>
 
           <div className="fp-headerActions">
-            <Link to="/run-analysis" state={{ gradingResults: state?.gradingResults }} className="fp-navLink">
-              ← Back to Plot
-            </Link>
+  <Link to="/run-analysis" state={{ gradingResults: state?.gradingResults }} className="fp-navLink">
+    ← Back to Plot
+  </Link>
 
-            <div className="fp-stepPill" title="You are viewing the frame profile">
-              <span className="fp-stepDot" />
-              Frame View
-            </div>
-          </div>
+  {/* ✅ NEW: North–South view button */}
+  <Link
+    to={`/frame/${encodeURIComponent(String(frameId))}/north-south`}
+    state={state}
+    className="fp-navLink fp-navLinkAlt"
+    title="View North–South profile"
+  >
+    ↕ North–South View
+  </Link>
+
+  <div className="fp-stepPill" title="You are viewing the frame profile">
+    <span className="fp-stepDot" />
+    Frame View
+  </div>
+</div>
+
         </div>
       </header>
 
