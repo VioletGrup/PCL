@@ -162,61 +162,6 @@ def check_within_window(
 
     return violations
 
-
-def sliding_line(
-    tracker: TerrainFollowingTracker,
-    violating_piles: list[dict[str, float]],
-    slope: float,
-    y_intercept: float,
-) -> None:
-    """
-    Vertically shift a fixed-slope line to reduce grading-window violations.
-
-    This function:
-      - finds the largest signed violation distance among violating piles
-      - chooses a capped vertical movement
-      - updates the line intercept
-      - writes new `pile.height` = slope * northing + new_intercept for all piles
-
-    Notes
-    -----
-    This is a legacy helper. In the current pipeline, `slide_all_piles(...)` is used
-    instead (search-based intercept-only optimisation).
-
-    Parameters
-    ----------
-    tracker : TerrainFollowingTracker
-        Tracker whose pile heights are updated.
-    violating_piles : list[dict[str, float]]
-        Output of `check_within_window(...)` for current heights.
-    slope : float
-        Line slope to preserve.
-    y_intercept : float
-        Current intercept to shift.
-    """
-    # calculate maximum distance piles are outside the window
-    max_distance_pile = max(violating_piles, key=lambda x: abs(x["below_by"] + x["above_by"]))
-    max_distance = max_distance_pile["below_by"] + max_distance_pile["above_by"]
-    movement_limit = (
-        violating_piles[0]["grading_window_max"] - violating_piles[0]["grading_window_min"]
-    ) / 2
-
-    # determine how much to slide the line by (capped by movement limit)
-    if max_distance > movement_limit:
-        movement = movement_limit
-    elif max_distance < -movement_limit:
-        movement = -movement_limit
-    else:
-        movement = max_distance
-
-    # update the y-intercept based on the required movement
-    new_y_intercept = y_intercept - movement
-
-    # update the elevations of each pile based on the new line
-    for pile in tracker.piles:
-        pile.height = _interpolate_coords(pile, slope, new_y_intercept)
-
-
 def grading(tracker: TerrainFollowingTracker, violating_piles: list[dict[str, float]]) -> None:
     """
     Apply final ground grading to eliminate remaining window violations.

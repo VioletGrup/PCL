@@ -23,7 +23,6 @@ from terrainTrackerGrading import (
     shift_piles,
     slope_correction,
     slide_all_piles,
-    sliding_line,
     main,
 )
 from Project import Project
@@ -749,71 +748,6 @@ class TestSlideAllPiles:
         final_slope = (h2_final - h0_final) / 20.0
 
         assert final_slope == pytest.approx(initial_slope, abs=0.001)
-
-
-# =============================================================================
-# TEST SLIDING LINE
-# =============================================================================
-
-
-class TestSlidingLine:
-    """Test legacy sliding line helper."""
-
-    def test_shifts_line_down_when_above_window(self):
-        """Line should shift down when piles are above window."""
-        tracker = TerrainFollowingTracker(tracker_id=1)
-        for i in range(3):
-            p = TerrainFollowingPile(
-                float(i * 10), 0.0, 10.0, i + 1, float(i + 1), 0.0
-            )
-            p.height = 15.0
-            tracker.add_pile(p)
-
-        violating_piles = [
-            {
-                "grading_window_min": 11.0,
-                "grading_window_max": 12.0,
-                "below_by": 0.0,
-                "above_by": 3.0,
-            }
-        ]
-
-        sliding_line(tracker, violating_piles, 0.0, 15.0)
-
-        # Heights should decrease
-        for p in tracker.piles:
-            assert p.height < 15.0
-
-    def test_shifts_line_up_when_below_window(self):
-        """Line should shift up when piles are below window."""
-        tracker = TerrainFollowingTracker(tracker_id=1)
-        for i in range(3):
-            p = TerrainFollowingPile(
-                float(i * 10), 0.0, 10.0, i + 1, float(i + 1), 0.0
-            )
-            p.height = 8.0
-            tracker.add_pile(p)
-
-        violating_piles = [
-            {
-                "grading_window_min": 11.0,
-                "grading_window_max": 12.0,
-                "below_by": -3.0,
-                "above_by": 0.0,
-            }
-        ]
-
-        sliding_line(tracker, violating_piles, 0.0, 8.0)
-
-        # Heights should increase
-        for p in tracker.piles:
-            assert p.height > 8.0
-
-
-# =============================================================================
-# TEST GRADING
-# =============================================================================
-
 
 class TestGrading:
     """Test final ground elevation adjustment."""

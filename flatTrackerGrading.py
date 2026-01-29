@@ -301,8 +301,8 @@ def find_optimal_line_intercept(
     slope: float,
     initial_intercept: float,
     span: float,
-    coarse_steps: int = 121,
-    fine_steps: int = 121,
+    coarse_steps: int = 121, #dividing grading window into 121 parts to find the best intercept
+    fine_steps: int = 121, #dividing the best intercept into 121 parts to find the best intercept iteratively
     fine_span_fraction: float = 0.1,
 ) -> LineSearchResult:
     """
