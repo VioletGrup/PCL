@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import random
-
-from PCL.Project import Project
-from PCL.ProjectConstraints import ShadingConstraints
-from PCL.shading.NorthSouth import NorthSouth
-from PCL.BaseTracker import BaseTracker
-from PCL.shading.EastWest import EastWest
+from BaseTracker import BaseTracker
+from Project import Project
+from ProjectConstraints import ShadingConstraints
+from shading.EastWest import EastWest
+from shading.NorthSouth import NorthSouth
 
 
 def run_shading_demo() -> None:
@@ -25,7 +23,7 @@ def run_shading_demo() -> None:
         max_incline=0.10,
         max_angle_rotation=60.0,
         edge_overhang=0.3,
-        azimuth_deg=180.0,  # south-facing sun
+        azimuth_deg=80.0,  # south-facing sun
         sun_angle_deg=35.0,  # solar altitude
         zenith_deg=55.0,
         pitch=5.8,
