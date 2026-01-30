@@ -5,6 +5,7 @@ import "./RunAnalysis.css";
 
 import pclLogo from "../assets/logos/pcllogo.png";
 import backgroundImage from "../assets/logos/Australia-Office-2025.png";
+import config from "../config";
 
 export default function RunAnalysis() {
   const { state } = useLocation();
@@ -60,6 +61,17 @@ export default function RunAnalysis() {
     return (radians * 180) / Math.PI;
   };
 
+  /**
+   * Safely parses a raw ID string (e.g. "12.03" or "12.3") into a float representation.
+   *
+   * @safety
+   * This function enforces a 2-digit pole convention to prevent precision ambiguity.
+   * - "12.03" -> 12.03 (Tracker 12, Pole 3)
+   * - "12.3"  -> 12.03 (Tracker 12, Pole 3) -- NOT Pole 30!
+   * - "12.30" -> 12.30 (Tracker 12, Pole 30)
+   *
+   * This ensures that "12.1" is correctly interpreted as Pole 1 (.01), matching the backend convention.
+   */
   const normalizePileId = (raw) => {
     const s = String(raw ?? "").trim();
     if (!s) return null;
@@ -128,10 +140,12 @@ export default function RunAnalysis() {
     setError("");
 
     try {
+      const params = JSON.parse(localStorage.getItem("pcl_parameters") || "{}");
       const cfg = JSON.parse(localStorage.getItem("pcl_config") || "{}");
-      setFileName(state?.fileName || cfg.fileName || "");
-      setSheetName(state?.sheetName || cfg.sheetName || "");
-      setTrackerType(state?.trackerType || cfg.trackerType || "flat");
+
+      setFileName(state?.fileName || params.fileName || cfg.fileName || "");
+      setSheetName(state?.sheetName || params.sheetName || cfg.sheetName || "");
+      setTrackerType(state?.trackerType || params.trackerType || cfg.trackerType || "flat");
 
       const frameLS = JSON.parse(localStorage.getItem("pcl_columns_frame") || "[]");
       const poleLS = JSON.parse(localStorage.getItem("pcl_columns_pole") || "[]");
@@ -220,6 +234,8 @@ export default function RunAnalysis() {
       if (piles.length > 0) {
         const violations = (gradingResults.violations || []).filter((v) => Math.floor(v.pile_id) === tid);
 
+        const metrics = gradingResults.tracker_metrics?.[tid];
+
         trackerResults = {
           tracker_id: tid,
           tracker_type: trackerType,
@@ -228,6 +244,10 @@ export default function RunAnalysis() {
           total_cut: piles.reduce((sum, p) => sum + (p.cut_fill > 0 ? p.cut_fill : 0), 0),
           total_fill: piles.reduce((sum, p) => sum + (p.cut_fill < 0 ? Math.abs(p.cut_fill) : 0), 0),
           constraints: gradingResults.constraints,
+          // ✅ Pass XTR metrics
+          north_wing_deflection: metrics?.north_wing_deflection,
+          south_wing_deflection: metrics?.south_wing_deflection,
+          max_tracker_degree_break: metrics?.max_tracker_degree_break,
         };
       }
     }
@@ -283,11 +303,12 @@ export default function RunAnalysis() {
 
       const params = JSON.parse(localStorage.getItem("pcl_parameters") || "{}");
 
+      // ✅ XTR: Pass degrees directly (no pctToDeg)
       const segDefDeg =
-        trackerType === "xtr" && params.maxSegmentSlopeChange ? pctToDeg(params.maxSegmentSlopeChange) : null;
+        trackerType === "xtr" && params.max_segment_deflection_deg ? parseFloat(params.max_segment_deflection_deg) : null;
 
       const cumDefDeg =
-        trackerType === "xtr" && params.maxCumulativeSlopeChange ? pctToDeg(params.maxCumulativeSlopeChange) : null;
+        trackerType === "xtr" && params.max_cumulative_deflection_deg ? parseFloat(params.max_cumulative_deflection_deg) : null;
 
       const request = {
         tracker_type: trackerType,
@@ -305,7 +326,7 @@ export default function RunAnalysis() {
         },
       };
 
-      const res = await fetch("http://127.0.0.1:8000/api/grade-project", {
+      const res = await fetch(`${config.API_BASE_URL}/api/grade-project`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(request),
@@ -436,6 +457,8 @@ export default function RunAnalysis() {
 
     const violations = (gradingResults.violations || []).filter((v) => Math.floor(v.pile_id) === tid);
 
+    const metrics = gradingResults.tracker_metrics?.[tid];
+
     const trackerResults = {
       tracker_id: tid,
       tracker_type: trackerType,
@@ -444,6 +467,10 @@ export default function RunAnalysis() {
       total_cut: piles.reduce((sum, p) => sum + (p.cut_fill > 0 ? p.cut_fill : 0), 0),
       total_fill: piles.reduce((sum, p) => sum + (p.cut_fill < 0 ? Math.abs(p.cut_fill) : 0), 0),
       constraints: gradingResults.constraints,
+      // ✅ Pass XTR metrics
+      north_wing_deflection: metrics?.north_wing_deflection,
+      south_wing_deflection: metrics?.south_wing_deflection,
+      max_tracker_degree_break: metrics?.max_tracker_degree_break,
     };
 
     navigate(`/frame/${encodeURIComponent(tid)}`, {
@@ -567,16 +594,6 @@ export default function RunAnalysis() {
 
         {!error && (
           <div className={`ra-workspace ${sidebarOpen ? "sidebar-open" : ""}`}>
-            {gradingResults && (
-              <button
-                className="ra-sidebarToggle"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                title={sidebarOpen ? "Close Tracker List" : "Open Tracker List"}
-              >
-                {sidebarOpen ? "«" : "»"}
-              </button>
-            )}
-
             {sidebarOpen && gradingResults && (
               <aside className="ra-sidebar">
                 <div className="ra-sidebarHead">
@@ -672,7 +689,16 @@ export default function RunAnalysis() {
 
             <section className="ra-plotCard">
               <div className="ra-plotHead">
-                <div>
+                {gradingResults && (
+                  <button
+                    className="ra-sidebarToggle"
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    title={sidebarOpen ? "Close Tracker List" : "Open Tracker List"}
+                  >
+                    {sidebarOpen ? "«" : "Trackers List »"}
+                  </button>
+                )}
+                <div className="ra-plotHeadText">
                   <div className="ra-plotTitle">Site Layout (Easting (X) vs Northing (Y))</div>
                   <div className="ra-plotSub">
                     {groupByTracker ? (
@@ -685,6 +711,13 @@ export default function RunAnalysis() {
                       </>
                     )}
                   </div>
+
+                  {/* ✅ Show XTR Metrics if present */}
+                  {gradingResults?.tracker_metrics && (
+                    <div className="ra-xtr-metrics" style={{ marginTop: 8, fontSize: "0.85rem", color: "#64748b" }}>
+                      Project Metrics Available: Wing Deflection & Degree Break (View in Tracker Details)
+                    </div>
+                  )}
                 </div>
 
                 {gradingResults && (

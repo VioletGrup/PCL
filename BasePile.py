@@ -55,8 +55,9 @@ class BasePile:
         self.current_elevation = self.initial_elevation
 
         # Basic validation
-        if self.pile_id < 0:
-            raise ValueError("pile_id must be non-negative")
+        if isinstance(self.pile_id, (int, float)):
+            if self.pile_id < 0:
+                raise ValueError("pile_id must be non-negative")
         if self.pile_in_tracker < 1:
             raise ValueError("pile_in_tracker must be >= 1")
         if self.flooding_allowance < 0:

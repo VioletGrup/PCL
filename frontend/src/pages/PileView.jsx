@@ -405,8 +405,8 @@ export default function PileView() {
     !moduleGeom
       ? "rgba(30, 136, 229, 0.95)"
       : clearanceStatus.ok
-      ? "rgba(30, 136, 229, 0.95)"
-      : "rgba(220, 38, 38, 0.95)";
+        ? "rgba(30, 136, 229, 0.95)"
+        : "rgba(220, 38, 38, 0.95)";
 
   // Build trackerResults like your older code so Open Tracker works
   const trackerResultsForLink = useMemo(() => {
@@ -450,11 +450,7 @@ export default function PileView() {
           </div>
 
           <div className="pv-headerActions">
-            <Link
-              to="/run-analysis"
-              state={{ gradingResults: state?.gradingResults }}
-              className="pv-navLink"
-            >
+            <Link to="/run-analysis" state={state} className="pv-navLink">
               ← Back to Run Analysis
             </Link>
 
@@ -543,8 +539,8 @@ export default function PileView() {
                 </>
               )}
 
-              
-              
+
+
             </div>
           </div>
 
@@ -568,57 +564,57 @@ export default function PileView() {
 
                   ...(moduleGeom
                     ? [
-                        // module line
-                        {
-                          x: moduleGeom.xLine,
-                          y: moduleGeom.yLine,
-                          type: "scatter",
-                          mode: "lines",
-                          line: { width: 5, color: moduleLineColor },
-                          hovertemplate:
-                            "Module line<br>Length: " +
-                            Number(moduleLength).toFixed(3) +
-                            " m<br>Tilt from horizontal: " +
-                            Number(maxTiltAngle).toFixed(1) +
-                            "°<br>Angle to pile: " +
-                            (90 - Number(maxTiltAngle)).toFixed(1) +
-                            "°<extra></extra>",
-                          showlegend: false,
-                        },
+                      // module line
+                      {
+                        x: moduleGeom.xLine,
+                        y: moduleGeom.yLine,
+                        type: "scatter",
+                        mode: "lines",
+                        line: { width: 5, color: moduleLineColor },
+                        hovertemplate:
+                          "Module line<br>Length: " +
+                          Number(moduleLength).toFixed(3) +
+                          " m<br>Tilt from horizontal: " +
+                          Number(maxTiltAngle).toFixed(1) +
+                          "°<br>Angle to pile: " +
+                          (90 - Number(maxTiltAngle)).toFixed(1) +
+                          "°<extra></extra>",
+                        showlegend: false,
+                      },
 
-                        // pile-top marker
-                        {
-                          x: [moduleGeom.centerX],
-                          y: [moduleGeom.centerY],
-                          type: "scatter",
-                          mode: "markers",
-                          marker: { size: 10, color: "#111827", line: { width: 2, color: "#ffffff" } },
-                          hovertemplate: "Pile top (center)<extra></extra>",
-                          showlegend: false,
-                        },
+                      // pile-top marker
+                      {
+                        x: [moduleGeom.centerX],
+                        y: [moduleGeom.centerY],
+                        type: "scatter",
+                        mode: "markers",
+                        marker: { size: 10, color: "#111827", line: { width: 2, color: "#ffffff" } },
+                        hovertemplate: "Pile top (center)<extra></extra>",
+                        showlegend: false,
+                      },
 
-                        // tilt arc (horizontal underside -> module underside)
-                        {
-                          x: moduleGeom.arcTilt.x,
-                          y: moduleGeom.arcTilt.y,
-                          type: "scatter",
-                          mode: "lines",
-                          line: { width: 3, color: "rgba(123, 31, 162, 0.98)" },
-                          hoverinfo: "skip",
-                          showlegend: false,
-                        },
+                      // tilt arc (horizontal underside -> module underside)
+                      {
+                        x: moduleGeom.arcTilt.x,
+                        y: moduleGeom.arcTilt.y,
+                        type: "scatter",
+                        mode: "lines",
+                        line: { width: 3, color: "rgba(123, 31, 162, 0.98)" },
+                        hoverinfo: "skip",
+                        showlegend: false,
+                      },
 
-                        // pile arc (module underside -> pile underside)
-                        {
-                          x: moduleGeom.arcPile.x,
-                          y: moduleGeom.arcPile.y,
-                          type: "scatter",
-                          mode: "lines",
-                          line: { width: 3, color: "rgba(216, 67, 21, 0.98)" },
-                          hoverinfo: "skip",
-                          showlegend: false,
-                        },
-                      ]
+                      // pile arc (module underside -> pile underside)
+                      {
+                        x: moduleGeom.arcPile.x,
+                        y: moduleGeom.arcPile.y,
+                        type: "scatter",
+                        mode: "lines",
+                        line: { width: 3, color: "rgba(216, 67, 21, 0.98)" },
+                        hoverinfo: "skip",
+                        showlegend: false,
+                      },
+                    ]
                     : []),
 
                   ...(clearanceTrace ? [clearanceTrace] : []),

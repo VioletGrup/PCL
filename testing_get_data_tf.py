@@ -97,7 +97,7 @@ def load_project_from_excel(
         if tracker_id not in trackers_by_id:
             trackers_by_id[tracker_id] = TerrainFollowingTracker(tracker_id=tracker_id)
 
-        pile_id = float(f"{tracker_id}.{pit}")
+        pile_id = f"{tracker_id}.{pit:02d}"
 
         trackers_by_id[tracker_id].piles.append(
             TerrainFollowingPile(
