@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from bisect import bisect_left
+from collections import defaultdict
 import math
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import Literal, Optional, Type
+from typing import List, Literal, Optional, Type, Dict
 
 from BasePile import BasePile
 from BaseTracker import BaseTracker
@@ -109,15 +111,51 @@ class Project:
         pile_in_tracker = int((pile_id_dec % 1) * 100)
         return self.get_tracker_by_id(tracker_id).get_pile_in_tracker(pile_in_tracker)
 
-    def get_trackers_on_easting(self, easting: float, ignore_ids: list[int]) -> list[TrackerABC]:
+    def get_trackers_on_easting(
+        self, easting: float, ignore_ids: list[int]
+    ) -> list[TrackerABC]:
+        target = float(easting)
+        tol = 0.005  # rounds to 2 decimal places when comparing easting coordinate
+
         same_easting: list[TrackerABC] = []
         for tracker in self.trackers:
             if tracker.tracker_id in ignore_ids:
                 continue
-            if tracker.get_first().easting == easting:
+
+            x = float(tracker.get_first().easting)
+            if abs(x - target) < tol:
                 same_easting.append(tracker)
+
         return same_easting
 
     def get_tracker_length(self, tracker_id: int) -> float:
         tracker = self.get_tracker_by_id(tracker_id)
-        return tracker.distance_first_to_last_pile + (self.constraints.edge_overhang * 2)
+        return tracker.distance_first_to_last_pile + (
+            self.constraints.edge_overhang * 2
+        )
+
+    def get_tracker_for_pile(self, pile: BasePile) -> TrackerABC:
+        """
+        Return the tracker that contains the given pile.
+
+        Parameters
+        ----------
+        pile : BasePile
+            Pile whose tracker is requested.
+
+        Returns
+        -------
+        TrackerABC
+            Tracker that owns the pile.
+
+        Raises
+        ------
+        ValueError
+            If the pile is not found in any tracker.
+        """
+        for tracker in self.trackers:
+            # Fast identity check first
+            if pile in tracker.piles:
+                return tracker
+
+        raise ValueError(f"Pile {pile.pile_id} not found in any tracker.")

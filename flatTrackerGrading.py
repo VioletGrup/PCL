@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 
+from bisect import bisect_left
+from collections import defaultdict
 import warnings
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, List, Optional
 
 from grading_utils import (
     y_intercept as _y_intercept,
     window_by_pile_in_tracker as _window_by_pile_in_tracker,
     interpolate_coords as _interpolate_coords,
     total_grading_cost as _total_grading_cost,
+    build_northing_index as _build_northing_index,
+    find_pile_west as _find_pile_west,
 )
 from BasePile import BasePile
 from BaseTracker import BaseTracker
@@ -37,7 +41,9 @@ class Line2DSearchResult:
 # and _total_grading_cost are imported from grading_utils.py
 
 
-def _apply_line_to_tracker(tracker: BaseTracker, slope: float, y_intercept: float) -> None:
+def _apply_line_to_tracker(
+    tracker: BaseTracker, slope: float, y_intercept: float
+) -> None:
     """
     Loops through tracker and sets the height to fit the line
 
@@ -632,7 +638,9 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
 
                 # determine which tracker is currently sitting up higher (needed to see which
                 # direction to move the trackers)
-                north_tracker_above = nt_south_pile.total_height - st_north_pile.total_height > 0
+                north_tracker_above = (
+                    nt_south_pile.total_height - st_north_pile.total_height > 0
+                )
 
                 # test 3 different conditions and see which one requires the least grading:
                 # 1. moving the north tracker up/down the entire change  (or to grading window)
@@ -640,7 +648,9 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                 # 3. move the north and south tracker 50% of the change  (or to grading window)
                 nt_north_pile = north.get_northmost_pile()
                 st_south_pile = south.get_southmost_pile()
-                if north_tracker_above:  # north tracker moves down, south tracker moves up
+                if (
+                    north_tracker_above
+                ):  # north tracker moves down, south tracker moves up
                     # maximum distance the north tracker can be moved down to keep endpiles within
                     # the grading window
                     north_dist_to_window = min(
@@ -667,8 +677,10 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         north_movement = -change_required
                         south_movement = 0
-                    cost1, north_slope1, ny_int1, south_slope1, sy_int1 = test_tracker_movement(
-                        north, south, north_movement, south_movement
+                    cost1, north_slope1, ny_int1, south_slope1, sy_int1 = (
+                        test_tracker_movement(
+                            project, north, south, north_movement, south_movement
+                        )
                     )
 
                     # CASE 2: south pile moves up entirely
@@ -678,8 +690,10 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         south_movement = change_required
                         north_movement = 0
-                    cost2, north_slope2, ny_int2, south_slope2, sy_int2 = test_tracker_movement(
-                        north, south, north_movement, south_movement
+                    cost2, north_slope2, ny_int2, south_slope2, sy_int2 = (
+                        test_tracker_movement(
+                            project, north, south, north_movement, south_movement
+                        )
                     )
 
                     # CASE 3: north and south piles move equal amounts
@@ -693,8 +707,10 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         north_movement = -half_change
                         south_movement = half_change
-                    cost3, north_slope3, ny_int3, south_slope3, sy_int3 = test_tracker_movement(
-                        north, south, north_movement, south_movement
+                    cost3, north_slope3, ny_int3, south_slope3, sy_int3 = (
+                        test_tracker_movement(
+                            project, north, south, north_movement, south_movement
+                        )
                     )
 
                     # apply the line that produces the least grading costs
@@ -735,8 +751,10 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         north_movement = change_required
                         south_movement = 0
-                    cost1, north_slope1, ny_int1, south_slope1, sy_int1 = test_tracker_movement(
-                        north, south, north_movement, south_movement
+                    cost1, north_slope1, ny_int1, south_slope1, sy_int1 = (
+                        test_tracker_movement(
+                            project, north, south, north_movement, south_movement
+                        )
                     )
 
                     # CASE 2: south pile moves up entirely
@@ -746,8 +764,10 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         south_movement = -change_required
                         north_movement = 0
-                    cost2, north_slope2, ny_int2, south_slope2, sy_int2 = test_tracker_movement(
-                        north, south, north_movement, south_movement
+                    cost2, north_slope2, ny_int2, south_slope2, sy_int2 = (
+                        test_tracker_movement(
+                            project, north, south, north_movement, south_movement
+                        )
                     )
 
                     # CASE 3: north and south piles move equal amounts
@@ -761,8 +781,10 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         north_movement = half_change
                         south_movement = -half_change
-                    cost3, north_slope3, ny_int3, south_slope3, sy_int3 = test_tracker_movement(
-                        north, south, north_movement, south_movement
+                    cost3, north_slope3, ny_int3, south_slope3, sy_int3 = (
+                        test_tracker_movement(
+                            project, north, south, north_movement, south_movement
+                        )
                     )
 
                     # apply the line that produces the least grading costs
@@ -777,7 +799,220 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                         _apply_line_to_tracker(south, south_slope3, sy_int3)
 
 
+def apply_ew_analysis(project: Project, requirements: dict[str, float]) -> None:
+    northings = _build_northing_index(project)
+    for tracker in project.trackers:
+        for pile in tracker.piles:
+            west_pile = _find_pile_west(
+                project, pile, northings, max_ew_dist=project.constraints.pitch + 0.5
+            )
+            if not west_pile:
+                continue
+
+            height_diff = abs(pile.height - west_pile.height)
+            current_gap = abs(pile.northing - west_pile.northing)
+            current_slope = height_diff / current_gap
+
+            if (
+                abs(height_diff) > requirements["ew_max_pile_height_diff"]
+                or abs(current_slope) > requirements["ew_max_slope_percent"]
+            ):
+                height_diff_for_slope = (
+                    current_gap * requirements["ew_max_slope_percent"]
+                )
+                required_height_diff = min(
+                    requirements["ew_max_pile_height_diff"], height_diff_for_slope
+                )
+                change_required = required_height_diff - height_diff
+                east_tracker = project.get_tracker_for_pile(pile)
+                west_tracker = project.get_tracker_for_pile(west_pile)
+
+                east_tracker_above = pile.height - west_pile.height > 0
+
+                # test 3 different conditions and see which one requires the least grading:
+                # 1. moving the east tracker up/down the entire change  (or to grading window)
+                # 2. moving the west tracker up/down the entire change  (or to grading window)
+                # 3. move the east and west tracker 50% of the change  (or to grading window)
+                et_north_pile = east_tracker.get_northmost_pile()
+                et_south_pile = east_tracker.get_southmost_pile()
+                wt_north_pile = west_tracker.get_northmost_pile()
+                wt_south_pile = west_tracker.get_southmost_pile()
+
+                if east_tracker_above:  # east tracker moves down, west tracker moves up
+                    # maximum distance the east tracker can be moved down to keep endpiles within
+                    # the grading window
+                    east_dist_to_window = min(
+                        et_south_pile.height - et_south_pile.true_min_height(project),
+                        et_north_pile.height - et_north_pile.true_min_height(project),
+                    )
+
+                    # maximum distance the west tracker can be moved up to keep endpiles within
+                    # the grading window
+                    west_dist_to_window = min(
+                        wt_south_pile.true_max_height(project) - wt_south_pile.height,
+                        wt_north_pile.true_max_height(project) - wt_north_pile.height,
+                    )
+
+                    # in this case there is no way to meet the shading requirements
+                    # while keeping the trackers endpiles within the grading window
+                    if east_dist_to_window + west_dist_to_window < change_required:
+                        continue
+
+                    # CASE 1: east pile moves down entirely
+                    if change_required > east_dist_to_window:
+                        east_movement = -east_dist_to_window
+                        west_movement = change_required - east_dist_to_window
+                    else:
+                        east_movement = -change_required
+                        west_movement = 0
+                    cost1, east_slope1, ey_int1, west_slope1, wy_int1 = (
+                        test_tracker_movement(
+                            project,
+                            east_tracker,
+                            west_tracker,
+                            east_movement,
+                            west_movement,
+                        )
+                    )
+
+                    # CASE 2: west pile moves up entirely
+                    if change_required > west_dist_to_window:
+                        west_movement = west_dist_to_window
+                        east_movement = west_dist_to_window - change_required
+                    else:
+                        west_movement = change_required
+                        east_movement = 0
+                    cost2, east_slope2, ey_int2, west_slope2, wy_int2 = (
+                        test_tracker_movement(
+                            project,
+                            east_tracker,
+                            west_tracker,
+                            east_movement,
+                            west_movement,
+                        )
+                    )
+
+                    # CASE 3: east and west piles move equal amounts
+                    half_change = change_required / 2
+                    if half_change > east_dist_to_window:
+                        east_movement = -east_dist_to_window
+                        west_movement = change_required - east_dist_to_window
+                    elif half_change > west_dist_to_window:
+                        west_movement = west_dist_to_window
+                        east_movement = west_dist_to_window - change_required
+                    else:
+                        east_movement = -half_change
+                        west_movement = half_change
+                    cost3, east_slope3, ey_int3, west_slope3, wy_int3 = (
+                        test_tracker_movement(
+                            project,
+                            east_tracker,
+                            west_tracker,
+                            east_movement,
+                            west_movement,
+                        )
+                    )
+
+                    # apply the line that produces the least grading costs
+                    if cost1 < cost2 and cost1 < cost3:
+                        _apply_line_to_tracker(east_tracker, east_slope1, ey_int1)
+                        _apply_line_to_tracker(west_tracker, west_slope1, wy_int1)
+                    elif cost2 < cost1 and cost2 < cost3:
+                        _apply_line_to_tracker(east_tracker, east_slope2, ey_int2)
+                        _apply_line_to_tracker(west_tracker, west_slope2, wy_int2)
+                    else:
+                        _apply_line_to_tracker(east_tracker, east_slope3, ey_int3)
+                        _apply_line_to_tracker(west_tracker, west_slope3, wy_int3)
+
+                else:  # west tracker moves down, east tracker moves up
+                    # maximum distance the east tracker can be moved up to keep endpiles within
+                    # the grading window
+                    east_dist_to_window = min(
+                        et_north_pile.true_max_height(project) - et_south_pile.height,
+                        et_north_pile.true_max_height(project) - et_north_pile.height,
+                    )
+
+                    # maximum distance the west tracker can be moved down to keep endpiles within
+                    # the grading window
+                    west_dist_to_window = min(
+                        wt_south_pile.height - wt_south_pile.true_min_height(project),
+                        wt_north_pile.height - wt_north_pile.true_min_height(project),
+                    )
+
+                    # in this case there is no way to meet the shading requirements
+                    # while keeping the trackers endpiles within the grading window
+                    if east_dist_to_window + west_dist_to_window < change_required:
+                        continue
+
+                    # CASE 1: east pile moves up entirely
+                    if change_required > east_dist_to_window:
+                        east_movement = east_dist_to_window
+                        west_movement = east_dist_to_window - change_required
+                    else:
+                        east_movement = change_required
+                        west_movement = 0
+                    cost1, east_slope1, ey_int1, west_slope1, wy_int1 = (
+                        test_tracker_movement(
+                            project,
+                            east_tracker,
+                            west_tracker,
+                            east_movement,
+                            west_movement,
+                        )
+                    )
+
+                    # CASE 2: west pile moves up entirely
+                    if change_required > west_dist_to_window:
+                        west_movement = -west_dist_to_window
+                        east_movement = change_required - west_dist_to_window
+                    else:
+                        west_movement = -change_required
+                        east_movement = 0
+                    cost2, east_slope2, ey_int2, west_slope2, wy_int2 = (
+                        test_tracker_movement(
+                            project,
+                            east_tracker,
+                            west_tracker,
+                            east_movement,
+                            west_movement,
+                        )
+                    )
+
+                    # CASE 3: east and west piles move equal amounts
+                    half_change = change_required / 2
+                    if half_change > east_dist_to_window:
+                        east_movement = east_dist_to_window
+                        west_movement = east_dist_to_window - change_required
+                    elif half_change > west_dist_to_window:
+                        west_movement = -west_dist_to_window
+                        east_movement = change_required - west_dist_to_window
+                    else:
+                        east_movement = half_change
+                        west_movement = -half_change
+                    cost3, east_slope3, ey_int3, west_slope3, wy_int3 = (
+                        test_tracker_movement(
+                            project,
+                            east_tracker,
+                            west_tracker,
+                            east_movement,
+                            west_movement,
+                        )
+                    )
+
+                    # apply the line that produces the least grading costs
+                    if cost1 < cost2 and cost1 < cost3:
+                        _apply_line_to_tracker(east_tracker, east_slope1, ey_int1)
+                        _apply_line_to_tracker(west_tracker, west_slope1, wy_int1)
+                    elif cost2 < cost1 and cost2 < cost3:
+                        _apply_line_to_tracker(east_tracker, east_slope2, ey_int2)
+                        _apply_line_to_tracker(west_tracker, west_slope2, wy_int2)
+                    else:
+                        _apply_line_to_tracker(east_tracker, east_slope3, ey_int3)
+                        _apply_line_to_tracker(west_tracker, west_slope3, wy_int3)
+
+
 def test_tracker_movement(
+    project: Project,
     north_tracker: BaseTracker,
     south_tracker: BaseTracker,
     north_movement: float,
@@ -791,13 +1026,17 @@ def test_tracker_movement(
         north_tracker.get_first().height - north_tracker.get_last().height
     ) / north_tracker.distance_first_to_last_pile()
     ny_int = _y_intercept(
-        north_slope, north_tracker.get_first().northing, north_tracker.get_first().height
+        north_slope,
+        north_tracker.get_first().northing,
+        north_tracker.get_first().height,
     )
     south_slope = (
         south_tracker.get_first().height - south_tracker.get_last().height
     ) / south_tracker.distance_first_to_last_pile()
     sy_int = _y_intercept(
-        south_slope, south_tracker.get_first().northing, south_tracker.get_first().height
+        south_slope,
+        south_tracker.get_first().northing,
+        south_tracker.get_first().height,
     )
 
     north_cost = south_cost = 0
@@ -901,7 +1140,8 @@ def main(project: Project) -> None:
 
         if piles_outside:
             window_half = (
-                piles_outside[0]["grading_window_max"] - piles_outside[0]["grading_window_min"]
+                piles_outside[0]["grading_window_max"]
+                - piles_outside[0]["grading_window_min"]
             ) / 2.0
 
             intercept_span = max(1e-6, 4.0 * window_half)
@@ -920,7 +1160,9 @@ def main(project: Project) -> None:
     if project.with_shading:
         print("start shading")
         ns_requirements, ew_requirements = shading_requirements(project)
-        apply_ns_analysis(project, ns_requirements)
+        for _ in range(2):
+            apply_ns_analysis(project, ns_requirements)
+            apply_ew_analysis(project, ew_requirements)
         print("end shading")
 
     print("Start Grading ...")

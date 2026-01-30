@@ -41,7 +41,10 @@ class EastWest:
 
     def ew_shadow_length(self) -> float:  # metres
         max_shadow_length_mm = 1000 / math.tan((self.sun_angle))
-        return abs(math.cos((90 - self.azimuth) * (math.pi / 180)) * (max_shadow_length_mm / 1000))
+        return abs(
+            math.cos((90 - self.azimuth) * (math.pi / 180))
+            * (max_shadow_length_mm / 1000)
+        )
 
     def max_tracking_angle(self) -> float:  # degrees
         return abs(
@@ -57,11 +60,15 @@ class EastWest:
         return math.sin(math.radians(self.tracker_axis_angle_max)) * self.module_length
 
     def ew_tracker_module_gap(self) -> float:  # metres
-        return self.pitch - math.cos(math.radians(self.tracker_axis_angle_max)) * self.module_length
+        return (
+            self.pitch
+            - math.cos(math.radians(self.tracker_axis_angle_max)) * self.module_length
+        )
 
     def max_ew_pile_height_difference(self) -> float:  # metres
         return (
-            self.ew_tracker_module_gap() / self.ew_shadow_length() - self.max_module_height_diff()
+            self.ew_tracker_module_gap() / self.ew_shadow_length()
+            - self.max_module_height_diff()
         )
 
     def max_slope_percentage(self) -> float:  # %
@@ -69,10 +76,10 @@ class EastWest:
 
     def full_ew(self) -> dict[str, float]:
         return {
-            "shadow_length_m": self.ew_shadow_length(),
+            "ew_shadow_length": self.ew_shadow_length(),
             "max_tracking_angle_deg": self.max_tracking_angle(),
-            "max_module_height_diff_m": self.max_module_height_diff(),
-            "tracker_module_gap_m": self.ew_tracker_module_gap(),
-            "max_pile_height_diff_m": self.max_ew_pile_height_difference(),
-            "max_slope_percent": self.max_slope_percentage(),
+            "ew_max_module_height_diff": self.max_module_height_diff(),
+            "ew_tracker_module_gap": self.ew_tracker_module_gap(),
+            "ew_max_pile_height_diff": self.max_ew_pile_height_difference(),
+            "ew_max_slope_percent": self.max_slope_percentage(),
         }
