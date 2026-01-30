@@ -140,10 +140,12 @@ export default function RunAnalysis() {
     setError("");
 
     try {
+      const params = JSON.parse(localStorage.getItem("pcl_parameters") || "{}");
       const cfg = JSON.parse(localStorage.getItem("pcl_config") || "{}");
-      setFileName(state?.fileName || cfg.fileName || "");
-      setSheetName(state?.sheetName || cfg.sheetName || "");
-      setTrackerType(state?.trackerType || cfg.trackerType || "flat");
+
+      setFileName(state?.fileName || params.fileName || cfg.fileName || "");
+      setSheetName(state?.sheetName || params.sheetName || cfg.sheetName || "");
+      setTrackerType(state?.trackerType || params.trackerType || cfg.trackerType || "flat");
 
       const frameLS = JSON.parse(localStorage.getItem("pcl_columns_frame") || "[]");
       const poleLS = JSON.parse(localStorage.getItem("pcl_columns_pole") || "[]");
@@ -592,16 +594,6 @@ export default function RunAnalysis() {
 
         {!error && (
           <div className={`ra-workspace ${sidebarOpen ? "sidebar-open" : ""}`}>
-            {gradingResults && (
-              <button
-                className="ra-sidebarToggle"
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                title={sidebarOpen ? "Close Tracker List" : "Open Tracker List"}
-              >
-                {sidebarOpen ? "«" : "»"}
-              </button>
-            )}
-
             {sidebarOpen && gradingResults && (
               <aside className="ra-sidebar">
                 <div className="ra-sidebarHead">
@@ -697,7 +689,16 @@ export default function RunAnalysis() {
 
             <section className="ra-plotCard">
               <div className="ra-plotHead">
-                <div>
+                {gradingResults && (
+                  <button
+                    className="ra-sidebarToggle"
+                    onClick={() => setSidebarOpen(!sidebarOpen)}
+                    title={sidebarOpen ? "Close Tracker List" : "Open Tracker List"}
+                  >
+                    {sidebarOpen ? "«" : "Trackers List »"}
+                  </button>
+                )}
+                <div className="ra-plotHeadText">
                   <div className="ra-plotTitle">Site Layout (Easting (X) vs Northing (Y))</div>
                   <div className="ra-plotSub">
                     {groupByTracker ? (

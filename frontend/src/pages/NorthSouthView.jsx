@@ -329,7 +329,7 @@ export default function NorthSouthView() {
           </div>
 
           <div className="nsv-headerActions">
-            <Link to="/run-analysis" state={{ gradingResults: state?.gradingResults }} className="nsv-navLink">
+            <Link to="/run-analysis" state={state} className="nsv-navLink">
               ← Back to Plot
             </Link>
 

@@ -29,8 +29,8 @@ export default function Parameters() {
   const [trackerEdgeOverhang, setTrackerEdgeOverhang] = useState(""); // m
 
   // XTR-only
-  const [maxSegmentDeflectionDeg, setMaxSegmentDeflectionDeg] = useState(""); // deg
-  const [maxCumulativeDeflectionDeg, setMaxCumulativeDeflectionDeg] = useState(""); // deg
+  const [max_segment_deflection_deg, set_max_segment_deflection_deg] = useState(""); // %
+  const [max_cumulative_deflection_deg, set_max_cumulative_deflection_deg] = useState(""); // %
 
   // Module geometry
   const [moduleLength, setModuleLength] = useState(""); // m
@@ -59,8 +59,8 @@ export default function Parameters() {
         setInstallationTolerance(saved.installationTolerance ?? "");
         setTrackerEdgeOverhang(saved.trackerEdgeOverhang ?? "");
 
-        setMaxSegmentDeflectionDeg(saved.max_segment_deflection_deg ?? "");
-        setMaxCumulativeDeflectionDeg(saved.max_cumulative_deflection_deg ?? "");
+        set_max_segment_deflection_deg(saved.max_segment_deflection_deg ?? "");
+        set_max_cumulative_deflection_deg(saved.max_cumulative_deflection_deg ?? "");
 
         setModuleLength(saved.moduleLength ?? "");
         setModuleWidth(saved.moduleWidth ?? "");
@@ -101,8 +101,8 @@ export default function Parameters() {
   useEffect(() => {
     setError("");
     if (trackerType === "flat") {
-      setMaxSegmentDeflectionDeg("");
-      setMaxCumulativeDeflectionDeg("");
+      set_max_segment_deflection_deg("");
+      set_max_cumulative_deflection_deg("");
     }
   }, [trackerType]);
 
@@ -126,7 +126,7 @@ export default function Parameters() {
     }
 
     if (trackerType === "xtr") {
-      if (!maxSegmentDeflectionDeg || !maxCumulativeDeflectionDeg) {
+      if (!max_segment_deflection_deg || !max_cumulative_deflection_deg) {
         return "Please complete all required XTR slope change fields.";
       }
     }
@@ -186,8 +186,8 @@ export default function Parameters() {
       installationTolerance,
       trackerEdgeOverhang,
 
-      max_segment_deflection_deg: trackerType === "xtr" ? maxSegmentDeflectionDeg : "",
-      max_cumulative_deflection_deg: trackerType === "xtr" ? maxCumulativeDeflectionDeg : "",
+      max_segment_deflection_deg: trackerType === "xtr" ? max_segment_deflection_deg : "",
+      max_cumulative_deflection_deg: trackerType === "xtr" ? max_cumulative_deflection_deg : "",
 
       moduleLength,
       moduleWidth,
@@ -318,8 +318,8 @@ export default function Parameters() {
               Required fields:{" "}
               <strong>
                 {trackerType === "xtr"
-                  ? "Max incline, Min/Max pile reveal, Tracker edge overhang, Max segment slope change, Max cumulative slope change, Installation tolerance"
-                  : "Max incline, Min/Max pile reveal, Tracker edge overhang, Installation tolerance"}
+                  ? "Maximum incline, Min/Max pile reveal, Tracker edge overhang, Maximum segment deflection (deg), Maximum cumulative deflection (deg), Installation tolerance"
+                  : "Maximum incline, Min/Max pile reveal, Tracker edge overhang, Installation tolerance"}
               </strong>
             </div>
           </section>
@@ -410,23 +410,23 @@ export default function Parameters() {
               {trackerType === "xtr" && (
                 <>
                   <div className="pr-field">
-                    <label className="pr-label">Max segment slope change (deg)</label>
+                    <label className="pr-label">Maximum segment deflection (deg)</label>
                     <input
                       className="pr-input"
                       type="number"
-                      value={maxSegmentDeflectionDeg}
-                      onChange={(e) => setMaxSegmentDeflectionDeg(e.target.value)}
+                      value={max_segment_deflection_deg}
+                      onChange={(e) => set_max_segment_deflection_deg(e.target.value)}
                       placeholder="e.g., 0.5"
                     />
                   </div>
 
                   <div className="pr-field">
-                    <label className="pr-label">Max cumulative slope change (deg)</label>
+                    <label className="pr-label">Maximum cumulative deflection (deg)</label>
                     <input
                       className="pr-input"
                       type="number"
-                      value={maxCumulativeDeflectionDeg}
-                      onChange={(e) => setMaxCumulativeDeflectionDeg(e.target.value)}
+                      value={max_cumulative_deflection_deg}
+                      onChange={(e) => set_max_cumulative_deflection_deg(e.target.value)}
                       placeholder="e.g., 4.0"
                     />
                   </div>

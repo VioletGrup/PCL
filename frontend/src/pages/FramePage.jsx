@@ -259,7 +259,7 @@ export default function FramePage() {
           </div>
 
           <div className="fp-headerActions">
-            <Link to="/run-analysis" state={{ gradingResults: state?.gradingResults }} className="fp-navLink">
+            <Link to="/run-analysis" state={state} className="fp-navLink">
               ← Back to Plot
             </Link>
 
