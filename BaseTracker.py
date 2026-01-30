@@ -28,12 +28,6 @@ class BaseTracker(TrackerABC):
 
     tracker_id: int
     piles: List[BasePile] = field(default_factory=list)
-    # north_adjacent: bool  # optional
-    # south_adjacent: bool  # optional
-    # east_adjanct: bool  # optional
-    # north_adjacent: bool  # optional
-
-    # add tracker string
 
     def add_pile(self, pile: BasePile) -> None:
         """Add a pile to the tracker."""

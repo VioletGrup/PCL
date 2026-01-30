@@ -5,11 +5,16 @@ Common utility functions shared between flat and terrain tracker grading modules
 
 from __future__ import annotations
 
-from typing import Dict, Protocol
+from bisect import bisect_left
+from typing import DefaultDict, Dict, List, Optional, Protocol
+
+from Project import Project
+from BasePile import BasePile
 
 
 class PileProtocol(Protocol):
     """Protocol for pile objects that have a northing coordinate."""
+
     northing: float
 
 
@@ -101,3 +106,62 @@ def total_grading_cost(violating_piles: list[dict[str, float]]) -> float:
         sum(|below_by| + above_by).
     """
     return sum(abs(v["below_by"]) + v["above_by"] for v in violating_piles)
+
+
+def build_northing_index(
+    project: Project,
+) -> Dict[float, List[tuple[float, BasePile]]]:
+    """
+    Maps rounded northing -> sorted list of (easting, pile)
+    """
+    index = DefaultDict(list)
+
+    for tracker in project.trackers:
+        for pile in tracker.piles:
+            key = round(pile.northing, 2)
+            index[key].append((pile.easting, pile))
+
+    for key in index:
+        index[key].sort(key=lambda x: x[0])
+
+    return index
+
+
+def find_pile_west(
+    project: Project,
+    target: BasePile,
+    northings: Dict[float, List[tuple[float, BasePile]]],
+    *,
+    max_ew_dist: float = 10.0,  # metres
+) -> Optional[BasePile]:
+    """
+    Find the closest pile west of `target` with:
+    - |northing difference| <= northing_tol
+    - east-west distance <= max_ew_dist
+    """
+    idx = northings
+
+    # check neighbouring northing buckets
+    base_key = round(target.northing, 2)
+    step = 10**-2
+    bucket_range = int(0.05 / step) + 1
+
+    for i in range(-bucket_range, bucket_range + 1):
+        key = round(base_key + i * step, 2)
+        bucket = idx.get(key)
+        if not bucket:
+            continue
+
+        eastings = [e for e, _ in bucket]
+        pos = bisect_left(eastings, target.easting)
+
+        # scan westward only
+        for j in range(pos - 1, -1, -1):
+            ew_dist = target.easting - eastings[j]
+            if ew_dist > max_ew_dist:
+                break  # too far west
+            pile = bucket[j][1]
+            if abs(pile.northing - target.northing) <= 0.05:
+                return pile  # closest valid west pile
+
+    return None

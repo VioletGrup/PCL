@@ -14,6 +14,7 @@ from ProjectConstraints import ProjectConstraints
 from TerrainFollowingPile import TerrainFollowingPile
 from TerrainFollowingTracker import TerrainFollowingTracker
 from testing_get_data_tf import load_project_from_excel, to_excel
+from shading.shadingAnalysis import main as shading_requirements
 
 
 def grading_window(project: Project, tracker: TerrainFollowingTracker) -> list[dict[str, float]]:
@@ -45,7 +46,7 @@ def grading_window(project: Project, tracker: TerrainFollowingTracker) -> list[d
     for pile in tracker.piles:
         wmin = pile.true_min_height(project)
         wmax = pile.true_max_height(project)
-        
+
         # Warn if inverted window (min > max) from excessive flooding/tolerance
         if wmin > wmax:
             warnings.warn(
@@ -53,7 +54,7 @@ def grading_window(project: Project, tracker: TerrainFollowingTracker) -> list[d
                 "This may be caused by excessive flooding_allowance or pile_install_tolerance.",
                 UserWarning,
             )
-        
+
         window.append(
             {
                 "pile_id": pile.pile_id,
@@ -93,7 +94,7 @@ def target_height_line(tracker: TerrainFollowingTracker, project: Project) -> No
 
     first_pile = tracker.get_first()
     last_pile = tracker.get_last()
-    
+
     # Guard against ZeroDivisionError from vertical alignment
     northing_diff = last_pile.northing - first_pile.northing
     if abs(northing_diff) < 1e-9:
@@ -101,7 +102,7 @@ def target_height_line(tracker: TerrainFollowingTracker, project: Project) -> No
             "Cannot calculate slope: piles have identical northing coordinates "
             "(vertical alignment). Check tracker pile positions."
         )
-    
+
     # determine the equation of the line assuming the ground is a straight line
     slope = (last_pile.current_elevation - first_pile.current_elevation) / northing_diff
     max_incline = project.constraints.max_incline
@@ -161,6 +162,7 @@ def check_within_window(
             )
 
     return violations
+
 
 def grading(tracker: TerrainFollowingTracker, violating_piles: list[dict[str, float]]) -> None:
     """
@@ -361,7 +363,7 @@ def slide_all_piles(
         Updates `pile.height` in-place using the best found shift.
     """
     if not tracker.piles:
-        return 
+        return
 
     # Ensure consistent ordering
     tracker.piles.sort(key=lambda p: p.pile_in_tracker)
@@ -472,6 +474,9 @@ def main(project: Project) -> None:
     project : Project
         Project containing trackers and grading constraints.
     """
+    # ensure piles in trackers are sorted north to south
+    project.renumber_piles_by_northing()
+
     for tracker in project.trackers:
         # determine the grading window for the tracker
         window = grading_window(project, tracker)
@@ -535,6 +540,7 @@ if __name__ == "__main__":
     main(project)
     to_excel(project)
     print("Results saved to final_pile_elevations_for_tf.xlsx")
+
     #### TEST DEGREE BREAKS ####
     viol_break = 0
     viol_cum_n = 0

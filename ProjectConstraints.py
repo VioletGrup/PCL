@@ -30,16 +30,19 @@ class ProjectConstraints:
             raise ValueError("min_reveal_height must be < max_reveal_height.")
         if self.pile_install_tolerance < 0:
             raise ValueError("pile_install_tolerance must be >= 0.")
-        
+
         # Check if tolerance would cause inverted grading window (min > max)
-        effective_window = (self.max_reveal_height - self.min_reveal_height) - self.pile_install_tolerance
+        effective_window = (
+            self.max_reveal_height - self.min_reveal_height
+        ) - self.pile_install_tolerance
         if effective_window < 0:
             raise ValueError(
                 f"pile_install_tolerance ({self.pile_install_tolerance}) is too large: "
-                f"it exceeds the reveal height range ({self.max_reveal_height - self.min_reveal_height}), "
+                f"it exceeds the reveal height range"
+                f"({self.max_reveal_height - self.min_reveal_height}), "
                 "which would create an inverted grading window (min > max)."
             )
-        
+
         if self.max_incline < 0:
             raise ValueError("max_incline must be >= 0 (rise/run).")
 
@@ -59,9 +62,7 @@ class ProjectConstraints:
 @dataclass
 class ShadingConstraints(ProjectConstraints):
     """
-    Constraints for projects that include shading.
-
-    Only construct this class when the Project has with_shading=True.
+    Extra constraints required when shading analysis is enabled.
     """
 
     # Solar position / shared shading inputs
@@ -73,6 +74,7 @@ class ShadingConstraints(ProjectConstraints):
     pitch: float = 0.0
     min_gap_btwn_end_modules: float = 0.0
     module_length: float = 0.0
+    tracker_axis_angle: float = 0.0
 
     @property
     def tracker_axis_angle_max(self) -> float:
@@ -81,12 +83,6 @@ class ShadingConstraints(ProjectConstraints):
 
     def validate(self, project_type: ProjectType) -> None:
         super().validate(project_type)
-
-        if not self.with_shading:
-            raise ValueError(
-                "ShadingConstraints must have with_shading=True. "
-                "Use ProjectConstraints for non-shading projects."
-            )
 
         if not (0.0 <= self.azimuth_deg <= 360.0):
             raise ValueError("azimuth_deg must be in [0, 360].")
@@ -98,4 +94,4 @@ class ShadingConstraints(ProjectConstraints):
         if self.min_gap_btwn_end_modules < 0.0:
             raise ValueError("min_gap_btwn_end_modules must be >= 0.")
         if self.module_length <= 0.0:
-            raise ValueError("module_length must be > 0")
+            raise ValueError("module_length must be > 0.")
