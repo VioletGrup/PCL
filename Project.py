@@ -169,7 +169,7 @@ class Project:
                 continue
 
             # 1. Sort piles north → south
-            tracker.piles.sort(key=lambda p: p.northing, reverse=True)
+            tracker.piles.sort(key=lambda p: p.northing, reverse=False)
 
             # 2. Renumber pile_in_tracker to match new order
             for i, pile in enumerate(tracker.piles, start=1):
