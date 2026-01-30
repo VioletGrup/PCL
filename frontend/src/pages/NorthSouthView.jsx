@@ -8,7 +8,7 @@ import backgroundImage from "../assets/logos/Australia-Office-2025.png";
 
 export default function NorthSouthView() {
   /**
-   * Purpose: North–South View (Front Elevation) — piles + module segments.
+   * Purpose: North–South View (Front Elevation) — piles + module segments + sequential slider.
    * Name: NorthSouthView.jsx
    * Date created: 2026-01-29
    * Method:
@@ -17,6 +17,7 @@ export default function NorthSouthView() {
    *  - Pile post: from final_elevation (base) to total_height (top elevation)
    *  - Module segment at pile top: width = MODULE WIDTH (m), scaled by depth (northing)
    *  - Base tick + base marker + base label (pile number)
+   *  - Slider (bottom): reveals piles sequentially (1..N). Default = N (all visible).
    * Hover info: pile number, base elevation, top elevation.
    */
 
@@ -52,6 +53,24 @@ export default function NorthSouthView() {
     return 0;
   }, [state]);
 
+  // Sorted piles (northing) once, so slider + traces stay consistent
+  const sortedPiles = useMemo(() => {
+    if (!grading?.piles?.length) return [];
+    return [...grading.piles].sort((a, b) => Number(a.northing) - Number(b.northing));
+  }, [grading]);
+
+  const totalPiles = sortedPiles.length;
+
+  // ✅ Slider: number of piles to SHOW (sequential). Default = ALL (keep all shown by default)
+  const [visibleCount, setVisibleCount] = useState(totalPiles);
+
+  // Keep slider synced if tracker changes / re-renders with different pile count
+  // (if totalPiles changes, default back to "all")
+  useMemo(() => {
+    if (totalPiles > 0) setVisibleCount(totalPiles);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPiles]);
+
   const handlePileJump = (e) => {
     e.preventDefault();
     if (!grading?.piles?.length) return;
@@ -60,9 +79,15 @@ export default function NorthSouthView() {
     if (!raw) return;
 
     const pileInTrackerNum = Number(raw);
-    if (!Number.isFinite(pileInTrackerNum) || !Number.isInteger(pileInTrackerNum) || pileInTrackerNum <= 0) return;
+    if (
+      !Number.isFinite(pileInTrackerNum) ||
+      !Number.isInteger(pileInTrackerNum) ||
+      pileInTrackerNum <= 0
+    )
+      return;
 
-    const pileObj = grading.piles.find((p) => Number(p.pile_in_tracker) === pileInTrackerNum) || null;
+    const pileObj =
+      grading.piles.find((p) => Number(p.pile_in_tracker) === pileInTrackerNum) || null;
     if (!pileObj) return;
 
     const violationObj =
@@ -78,14 +103,16 @@ export default function NorthSouthView() {
   };
 
   const plotTraces = useMemo(() => {
-    if (!grading?.piles?.length) return [];
+    if (!sortedPiles.length) return [];
 
-    // Sort by northing so depth scaling is consistent
-    const piles = [...grading.piles].sort((a, b) => Number(a.northing) - Number(b.northing));
+    // ✅ show first K piles in the sorted order (sequential reveal)
+    const K = Math.max(1, Math.min(Number(visibleCount) || 1, sortedPiles.length));
+    const piles = sortedPiles.slice(0, K);
 
     const northings = piles.map((p) => Number(p.northing));
-    const minN = Math.min(...northings);
-    const maxN = Math.max(...northings);
+    const allNorthings = sortedPiles.map((p) => Number(p.northing));
+    const minN = Math.min(...allNorthings);
+    const maxN = Math.max(...allNorthings);
     const nRange = maxN - minN || 1;
 
     const easting = piles.map((p) => Number(p.easting));
@@ -180,7 +207,7 @@ export default function NorthSouthView() {
 
       if (!Number.isFinite(x) || !Number.isFinite(y0) || !Number.isFinite(y1)) continue;
 
-      // Depth scaling (front = 1.0, far back = 0.4)
+      // Depth scaling (front = 1.0, far back = 0.4) based on ALL piles range
       const depthFactor = 1 - ((Number(piles[i].northing) - minN) / nRange) * 0.6;
       const widthFactor = Math.max(0.4, Math.min(1.0, depthFactor));
 
@@ -258,7 +285,7 @@ export default function NorthSouthView() {
         });
       }
 
-      // ✅ Module segment at top uses MODULE WIDTH
+      // Module segment at top uses MODULE WIDTH
       if (Number.isFinite(moduleWidth) && moduleWidth > 0) {
         const segHalf = (moduleWidth / 2) * widthFactor;
         moduleSegments.push({
@@ -282,7 +309,7 @@ export default function NorthSouthView() {
       ...baseMarkers,
       ...baseLabels,
     ];
-  }, [grading, moduleWidth]);
+  }, [grading, moduleWidth, sortedPiles, visibleCount]);
 
   if (!grading) {
     return (
@@ -329,7 +356,11 @@ export default function NorthSouthView() {
           </div>
 
           <div className="nsv-headerActions">
-            <Link to="/run-analysis" state={state} className="nsv-navLink">
+            <Link
+              to="/run-analysis"
+              state={{ gradingResults: state?.gradingResults }}
+              className="nsv-navLink"
+            >
               ← Back to Plot
             </Link>
 
@@ -404,7 +435,8 @@ export default function NorthSouthView() {
               <div>
                 <div className="nsv-plotTitle">Tracker {frameId} — North–South (Front Elevation)</div>
                 <div className="nsv-plotSub">
-                  Base tick + marker + pile # at bottom. Module segment at top uses <strong>module width</strong>.
+                  Base tick + marker + pile # at bottom. Module segment at top uses{" "}
+                  <strong>module width</strong>.
                 </div>
               </div>
 
@@ -440,7 +472,7 @@ export default function NorthSouthView() {
                   showlegend: true,
                   legend: { orientation: "h", y: -0.18 },
                   dragmode: "pan",
-                  margin: { l: 70, r: 30, t: 20, b: 70 },
+                  margin: { l: 70, r: 30, t: 20, b: 85 }, // ✅ extra bottom space for slider
                   paper_bgcolor: "rgba(0,0,0,0)",
                   plot_bgcolor: "rgba(0,0,0,0)",
                   font: { color: "rgba(15,23,42,0.92)" },
@@ -449,6 +481,34 @@ export default function NorthSouthView() {
                 useResizeHandler
                 style={{ width: "100%", height: "600px" }}
               />
+
+              {/* ✅ Sequential pile slider (keeps all shown by default) */}
+              {totalPiles > 0 && (
+                <div className="nsv-sliderBar">
+                  <div className="nsv-sliderTop">
+                    <div className="nsv-sliderLabel">Reveal piles</div>
+                    <div className="nsv-sliderValue">
+                      Showing <strong>{Math.max(1, Math.min(visibleCount, totalPiles))}</strong> /{" "}
+                      <strong>{totalPiles}</strong>
+                    </div>
+                  </div>
+
+                  <input
+                    className="nsv-slider"
+                    type="range"
+                    min={1}
+                    max={totalPiles}
+                    step={1}
+                    value={Math.max(1, Math.min(visibleCount, totalPiles))}
+                    onChange={(e) => setVisibleCount(Number(e.target.value))}
+                    aria-label="Reveal piles sequentially"
+                  />
+
+                  <div className="nsv-sliderHint">
+                    Drag left/right to reveal piles in order (sorted by <strong>northing</strong>). Default shows all.
+                  </div>
+                </div>
+              )}
             </div>
           </main>
 
@@ -482,6 +542,8 @@ export default function NorthSouthView() {
                 Hover info is limited to: <strong>Pile #</strong>, <strong>Base</strong>, <strong>Top</strong>.
                 <br />
                 Module segment uses <strong>module width</strong> and scales by depth (northing).
+                <br />
+                Slider reveals piles sequentially (default: all piles).
               </div>
             </div>
 
