@@ -6,7 +6,6 @@
  * Data dictionary: N/A
  */
 
-/* Ensure scrolling works */
 html,
 body {
   overflow-y: auto !important;
@@ -48,8 +47,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image:
-    linear-gradient(var(--grid-color) 1px, transparent 1px),
+  background-image: linear-gradient(var(--grid-color) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
   background-size: 52px 52px;
   mask-image: radial-gradient(
@@ -143,7 +141,7 @@ body {
 .upl-navLink:hover {
   transform: translateY(-1px);
   border-color: rgba(242, 195, 0, 0.35);
-  background: rgba(242, 195, 0, 0.10);
+  background: rgba(242, 195, 0, 0.1);
   color: var(--pcl-gold);
 }
 
@@ -153,7 +151,7 @@ body {
   gap: 8px;
   padding: 10px 14px;
   border-radius: 999px;
-  border: 1px solid rgba(242, 195, 0, 0.40);
+  border: 1px solid rgba(242, 195, 0, 0.4);
   background: rgba(242, 195, 0, 0.12);
   color: var(--pcl-gold);
   font-weight: 950;
@@ -192,7 +190,7 @@ body {
   align-items: center;
   gap: 8px;
   background: rgba(242, 195, 0, 0.14);
-  border: 1px solid rgba(242, 195, 0, 0.40);
+  border: 1px solid rgba(242, 195, 0, 0.4);
   color: var(--pcl-gold);
   padding: 8px 16px;
   border-radius: 999px;
@@ -212,8 +210,15 @@ body {
 }
 
 @keyframes upl-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.55; transform: scale(1.25); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.25);
+  }
 }
 
 .upl-h1 {
@@ -273,8 +278,8 @@ body {
   place-items: center;
   font-weight: 950;
   font-size: 13px;
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text-primary);
 }
 
@@ -305,7 +310,7 @@ body {
   width: 64px;
   align-self: center;
   height: 1px;
-  background: rgba(255,255,255,0.14);
+  background: rgba(255, 255, 255, 0.14);
   opacity: 0.7;
 }
 
@@ -325,7 +330,7 @@ body {
   justify-content: space-between;
   gap: 14px;
   padding: 8px 8px 14px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 14px;
 }
 
@@ -361,7 +366,7 @@ body {
 
 .upl-chipIdle {
   color: var(--pcl-gold);
-  background: rgba(242, 195, 0, 0.10);
+  background: rgba(242, 195, 0, 0.1);
   border: 1px solid rgba(242, 195, 0, 0.25);
 }
 
@@ -376,7 +381,8 @@ body {
   border: 1.5px dashed rgba(242, 195, 0, 0.34);
   background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease,
+    box-shadow 0.18s ease;
   user-select: none;
 }
 
@@ -412,10 +418,6 @@ body {
   margin-top: 4px;
   font-size: 13px;
   color: var(--text-secondary);
-}
-
-.upl-dropHint {
-  display: none;
 }
 
 .upl-hiddenInput {
@@ -508,6 +510,12 @@ body {
   gap: 10px;
 }
 
+.upl-actionsSplit {
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Buttons */
 .upl-btn {
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.06);
@@ -517,7 +525,8 @@ body {
   font-weight: 950;
   font-size: 14px;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease,
+    box-shadow 0.18s ease;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -527,7 +536,7 @@ body {
 .upl-btn:hover {
   transform: translateY(-1px);
   border-color: rgba(242, 195, 0, 0.35);
-  background: rgba(242, 195, 0, 0.10);
+  background: rgba(242, 195, 0, 0.1);
 }
 
 .upl-btnPrimary {
@@ -538,7 +547,7 @@ body {
 }
 
 .upl-btnPrimary:hover {
-  box-shadow: 0 18px 46px rgba(242, 195, 0, 0.40);
+  box-shadow: 0 18px 46px rgba(242, 195, 0, 0.4);
 }
 
 .upl-btnGhost {
@@ -548,6 +557,18 @@ body {
 
 .upl-btnGhost:hover {
   border-color: var(--pcl-gold);
+}
+
+/* ✅ NEW: soft secondary for Custom Uploads */
+.upl-btnSoft {
+  border: 1px solid rgba(242, 195, 0, 0.28);
+  background: rgba(242, 195, 0, 0.08);
+  color: var(--pcl-gold);
+}
+
+.upl-btnSoft:hover {
+  background: rgba(242, 195, 0, 0.12);
+  border-color: rgba(242, 195, 0, 0.45);
 }
 
 /* Disabled */
@@ -636,14 +657,15 @@ body {
     flex-direction: column;
   }
 
+  .upl-actionsSplit {
+    gap: 10px;
+  }
+
   .upl-btn {
     width: 100%;
     justify-content: center;
   }
 }
-
-
-/* Add to Uploads.css (near the bottom) */
 
 /* Smooth centered toast overlay */
 .upl-toastOverlay {
@@ -654,8 +676,7 @@ body {
   place-items: center;
   padding: 24px;
 
-  /* smooth backdrop */
-  background: rgba(0, 0, 0, 0.0);
+  background: rgba(0, 0, 0, 0);
   backdrop-filter: blur(0px);
   opacity: 0;
   transition: opacity 220ms ease, background 220ms ease, backdrop-filter 220ms ease;
@@ -675,12 +696,10 @@ body {
   padding: 14px 16px;
   border-radius: 16px;
 
-  /* aesthetic glass */
   background: rgba(255, 255, 255, 0.88);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
   border: 1px solid rgba(255, 255, 255, 0.35);
 
-  /* smooth pop */
   opacity: 0;
   transform: translateY(14px) scale(0.98);
   transition: opacity 220ms ease, transform 220ms cubic-bezier(0.2, 0.9, 0.2, 1);
@@ -707,13 +726,13 @@ body {
 }
 
 .upl-toastCard.is-success .upl-toastIcon {
-  background: rgba(11, 91, 63, 0.10);
+  background: rgba(11, 91, 63, 0.1);
   color: rgba(11, 91, 63, 0.95);
   border-color: rgba(11, 91, 63, 0.18);
 }
 
 .upl-toastCard.is-error .upl-toastIcon {
-  background: rgba(220, 38, 38, 0.10);
+  background: rgba(220, 38, 38, 0.1);
   color: rgba(220, 38, 38, 0.95);
   border-color: rgba(220, 38, 38, 0.18);
 }
@@ -724,12 +743,9 @@ body {
   letter-spacing: 0.15px;
 }
 
-/* Respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .upl-toastOverlay,
   .upl-toastCard {
     transition: none !important;
   }
 }
-
-

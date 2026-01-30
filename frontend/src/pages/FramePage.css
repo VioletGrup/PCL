@@ -52,12 +52,10 @@ body {
     linear-gradient(var(--grid-color) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
   background-size: 52px 52px;
-  mask-image: radial-gradient(
-    circle at 50% 30%,
-    rgba(0, 0, 0, 0.9),
-    rgba(0, 0, 0, 0.25) 55%,
-    transparent 75%
-  );
+  mask-image: radial-gradient(circle at 50% 30%,
+      rgba(0, 0, 0, 0.9),
+      rgba(0, 0, 0, 0.25) 55%,
+      transparent 75%);
 }
 
 /* Header */
@@ -219,11 +217,13 @@ body {
 }
 
 @keyframes fp-pulse {
+
   0%,
   100% {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.55;
     transform: scale(1.25);
@@ -435,7 +435,8 @@ body {
 /* ✅ no forced tall height here */
 .fp-plotWrap {
   flex: 1;
-  min-height: 0;
+  min-height: 400px;
+  /* Prevent collapse when toggling traces */
   padding: 10px 10px 14px;
   background: #ffffff;
 }
@@ -454,7 +455,8 @@ body {
 /* ✅ Grid + axis lines (Plotly uses BOTH line + path across versions) */
 .fp-plotCard .gridlayer line,
 .fp-plotCard .gridlayer path {
-  stroke: rgb(2, 6, 23) !important; /* stronger */
+  stroke: rgb(2, 6, 23) !important;
+  /* stronger */
   stroke-width: 1px !important;
   shape-rendering: crispEdges;
 }
@@ -481,9 +483,11 @@ body {
   border-radius: 10px !important;
   box-shadow: 0 12px 24px rgba(2, 6, 23, 0.10) !important;
 }
+
 .fp-plotCard .modebar-btn path {
   fill: rgba(15, 23, 42, 0.85) !important;
 }
+
 .fp-plotCard .modebar-btn:hover {
   background: rgba(242, 195, 0, 0.20) !important;
 }
@@ -493,6 +497,7 @@ body {
   fill: rgba(15, 23, 42, 0.95) !important;
   stroke: rgba(255, 255, 255, 0.25) !important;
 }
+
 .fp-plotCard .hoverlayer .hovertext text {
   fill: #ffffff !important;
   font-weight: 900 !important;
@@ -702,9 +707,11 @@ body {
 .fp-marker.pile-ok {
   background: rgba(66, 66, 66, 0.95);
 }
+
 .fp-marker.pile-graded {
   background: rgba(255, 152, 0, 0.95);
 }
+
 .fp-marker.pile-violation {
   background: rgba(255, 77, 77, 0.95);
 }
@@ -717,30 +724,35 @@ body {
 }
 
 .fp-line.limit-max-dash {
-  border-top-color: rgba(211, 47, 47, 0.95);
-  border-top-style: dashed;
+  border-top-color: rgba(255, 152, 0, 0.5);
+  border-top-style: dotted;
 }
+
 .fp-line.limit-min-dash {
-  border-top-color: rgba(25, 118, 210, 0.95);
-  border-top-style: dashed;
+  border-top-color: rgba(0, 188, 212, 0.5);
+  border-top-style: dotted;
 }
+
 .fp-line.limit-max-solid {
   border-top-color: rgba(211, 47, 47, 0.95);
-  border-top-style: solid;
+  border-top-style: dashed;
 }
+
 .fp-line.limit-min-solid {
   border-top-color: rgba(25, 118, 210, 0.95);
-  border-top-style: solid;
+  border-top-style: dashed;
 }
 
 .fp-line.original-ground {
   border-top-color: rgba(139, 69, 19, 0.95);
   border-top-style: dotted;
 }
+
 .fp-line.proposed-ground {
   border-top-color: rgba(46, 125, 50, 0.95);
   border-top-style: solid;
 }
+
 .fp-line.optimal-line {
   border-top-color: rgba(0, 0, 0, 0.95);
   border-top-style: solid;
@@ -879,4 +891,16 @@ body {
 /* Make piles feel clickable */
 .fp-plotCard .scatterlayer path {
   cursor: pointer;
+}
+
+/* Optional: alternate nav button accent */
+.fp-navLinkAlt {
+  border-color: rgba(46, 125, 50, 0.35);
+  background: rgba(46, 125, 50, 0.10);
+}
+
+.fp-navLinkAlt:hover {
+  border-color: rgba(46, 125, 50, 0.55);
+  background: rgba(46, 125, 50, 0.16);
+  color: rgba(46, 125, 50, 0.95);
 }

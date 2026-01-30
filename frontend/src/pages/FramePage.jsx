@@ -14,9 +14,9 @@ export default function FramePage() {
 
   const [grading, setGrading] = useState(state?.trackerResults || null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [hiddenTraces, setHiddenTraces] = useState(new Set());
+  const [hiddenTraces, setHiddenTraces] = useState(new Set(["Angle Break"]));
 
-  // ✅ NEW: jump to pile (by pile_in_tracker, not pile_id)
+  // jump to pile (by pile_in_tracker, not pile_id)
   const [pileJump, setPileJump] = useState("");
 
   const toggleTrace = (name) => {
@@ -37,7 +37,18 @@ export default function FramePage() {
   }, [state]);
 
   useEffect(() => {
-    console.log("FramePage mounted. State:", state);
+    console.log("FramePage state changed. State:", state);
+    // Only sync grading if we have new tracker results
+    // This prevents clearing grading when other state changes occur
+    if (state?.trackerResults) {
+      setGrading(prevGrading => {
+        // Only update if the tracker_id changed or if we don't have grading yet
+        if (!prevGrading || prevGrading.tracker_id !== state.trackerResults.tracker_id) {
+          return state.trackerResults;
+        }
+        return prevGrading;
+      });
+    }
   }, [state]);
 
   const handlePileJump = (e) => {
@@ -60,7 +71,7 @@ export default function FramePage() {
     const violationObj =
       grading?.violations?.find((v) => Number(v.pile_id) === Number(pileObj.pile_id)) || null;
 
-    // ✅ IMPORTANT: your app route is /pile/:pileId (e.g. /pile/12.03)
+    // your app route is /pile/:pileId (e.g. /pile/12.03)
     navigate(`/pile/${encodeURIComponent(String(pileObj.pile_id))}`, {
       state: {
         ...state,
@@ -70,7 +81,7 @@ export default function FramePage() {
     });
   };
 
-  // Prepare plot data (UNCHANGED)
+  // Prepare plot data
   const plotData = useMemo(() => {
     if (!grading || !grading.piles) return null;
 
@@ -90,6 +101,84 @@ export default function FramePage() {
       const toleranceImpact = tolerance;
       const availableRange = maxReveal - minReveal;
 
+      // Angle Break Highlight Logic (Round 3)
+      const angleBreakRoofX = [];
+      const angleBreakRoofY = [];
+      const angleBreakTextX = [];
+      const angleBreakTextY = [];
+      const angleBreakTextVal = [];
+
+      // Check if this is a terrain tracker
+      const isTerrain = meta.trackerType === 'xtr' || meta.trackerType === 'terrain';
+
+      if (isTerrain && piles.length > 0) {
+        // We need indices, so iterate manually
+        for (let i = 0; i < piles.length; i++) {
+          const p = piles[i];
+
+          if (p.final_degree_break && p.final_degree_break > 0.001) {
+            const x = p.northing;
+            const y = p.total_height;
+            const lift = 0.02; // Vertical lift above the optimal line
+
+            // 1. Left Highlight (incoming segment)
+            if (i > 0) {
+              const prev = piles[i - 1];
+              const prevX = prev.northing;
+              const prevY = prev.total_height;
+              const dxTotal = Math.abs(x - prevX);
+
+              // Use 20% of inter-pile distance for segment, 5% for gap
+              const segLen = dxTotal * 0.03;
+              const gap = dxTotal * 0.005;
+
+              if (segLen > 0.001) {
+                // Slope
+                const m = (y - prevY) / (x - prevX);
+
+                const xEnd = x - gap;
+                const yEnd = y - (gap * m) + lift;
+
+                const xStart = x - gap - segLen;
+                const yStart = y - ((gap + segLen) * m) + lift;
+
+                angleBreakRoofX.push(xStart, xEnd, null);
+                angleBreakRoofY.push(yStart, yEnd, null);
+              }
+            }
+
+            // 2. Right Highlight (outgoing segment)
+            if (i < piles.length - 1) {
+              const next = piles[i + 1];
+              const nextX = next.northing;
+              const nextY = next.total_height;
+              const dxTotal = Math.abs(nextX - x);
+
+              const segLen = dxTotal * 0.03;
+              const gap = dxTotal * 0.005;
+
+              if (segLen > 0.001) {
+                const m = (nextY - y) / (nextX - x);
+
+                const xStart = x + gap;
+                const yStart = y + (gap * m) + lift;
+
+                const xEnd = x + gap + segLen;
+                const yEnd = y + ((gap + segLen) * m) + lift;
+
+                angleBreakRoofX.push(xStart, xEnd, null);
+                angleBreakRoofY.push(yStart, yEnd, null);
+              }
+            }
+
+            // Text coordinate (above pile)
+            angleBreakTextX.push(x);
+            angleBreakTextY.push(y + 0.1); // Slightly above line
+            angleBreakTextVal.push(p.final_degree_break.toFixed(2));
+          }
+        }
+      }
+
       return {
         x: xVals,
         original: piles.map((p) => p.initial_elevation),
@@ -104,12 +193,22 @@ export default function FramePage() {
         windowInverted,
         toleranceImpact,
         availableRange,
+        // Angle break data
+        angleBreakRoofX,
+        angleBreakRoofY,
+        angleBreakTextX,
+        angleBreakTextY,
+        angleBreakTextVal,
+        isTerrain,
       };
     } catch (e) {
       console.error("Error calculating plot data:", e);
+      console.error("Stack trace:", e.stack);
+      console.error("grading:", grading);
+      console.error("meta.trackerType:", meta.trackerType);
       return null;
     }
-  }, [grading]);
+  }, [grading, meta.trackerType]);
 
   if (!grading) {
     return (
@@ -136,6 +235,9 @@ export default function FramePage() {
     );
   }
 
+  // Determine if we should show extra terrain metrics
+  const isTerrain = meta.trackerType === "xtr" || meta.trackerType === "terrain";
+
   return (
     <div className="fp-shell">
       {/* Background */}
@@ -157,8 +259,18 @@ export default function FramePage() {
           </div>
 
           <div className="fp-headerActions">
-            <Link to="/run-analysis" state={{ gradingResults: state?.gradingResults }} className="fp-navLink">
+            <Link to="/run-analysis" state={state} className="fp-navLink">
               ← Back to Plot
+            </Link>
+
+            {/* ✅ NEW: North–South view button */}
+            <Link
+              to={`/frame/${encodeURIComponent(String(frameId))}/north-south`}
+              state={state}
+              className="fp-navLink fp-navLinkAlt"
+              title="View North–South profile"
+            >
+              ↕ North–South View
             </Link>
 
             <div className="fp-stepPill" title="You are viewing the frame profile">
@@ -166,6 +278,7 @@ export default function FramePage() {
               Frame View
             </div>
           </div>
+
         </div>
       </header>
 
@@ -201,6 +314,41 @@ export default function FramePage() {
             <div className="fp-chipLabel">Total Fill</div>
             <div className="fp-chipValue">{grading.total_fill.toFixed(2)} m</div>
           </div>
+
+          {/* ✅ Terrain Specific Metrics */}
+          {(() => {
+            if (!isTerrain) return null;
+
+            // Try getting metrics from the direct grading result (single tracker grading)
+            let north = grading.north_wing_deflection;
+            let south = grading.south_wing_deflection;
+
+            // Fallback: Try getting them from project-wide results (project grading)
+            if (north === undefined || south === undefined) {
+              const metrics = state?.gradingResults?.tracker_metrics?.[frameId] || state?.gradingResults?.tracker_metrics?.[Number(frameId)];
+              if (metrics) {
+                north = metrics.north_wing_deflection;
+                south = metrics.south_wing_deflection;
+              }
+            }
+
+            return (
+              <>
+                {north !== undefined && (
+                  <div className="fp-chip">
+                    <div className="fp-chipLabel">North Deflect</div>
+                    <div className="fp-chipValue">{Number(north).toFixed(2)}°</div>
+                  </div>
+                )}
+                {south !== undefined && (
+                  <div className="fp-chip">
+                    <div className="fp-chipLabel">South Deflect</div>
+                    <div className="fp-chipValue">{Number(south).toFixed(2)}°</div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {plotData?.windowInverted && (
@@ -242,6 +390,7 @@ export default function FramePage() {
             <div className="fp-plotWrap">
               {plotData && (
                 <Plot
+                  key={`plot-${frameId}`}
                   data={[
                     {
                       x: plotData.x,
@@ -250,7 +399,7 @@ export default function FramePage() {
                       mode: "lines",
                       name: "Original Ground",
                       line: { color: "#8B4513", width: 2, dash: "dot" },
-                      visible: hiddenTraces.has("Original Ground") ? false : true,
+                      visible: hiddenTraces.has("Original Ground") ? "legendonly" : true,
                     },
                     {
                       x: plotData.x,
@@ -261,7 +410,7 @@ export default function FramePage() {
                       line: { color: "#2E7D32", width: 3 },
                       fill: hiddenTraces.has("Original Ground") ? "none" : "tonexty",
                       fillcolor: "rgba(46, 125, 50, 0.10)",
-                      visible: hiddenTraces.has("Proposed Ground") ? false : true,
+                      visible: hiddenTraces.has("Proposed Ground") ? "legendonly" : true,
                     },
                     {
                       x: plotData.x,
@@ -271,7 +420,7 @@ export default function FramePage() {
                       name: "Optimal Line (Pile Top)",
                       line: { color: "#000000", width: 2 },
                       marker: { size: 6, color: "#000000" },
-                      visible: hiddenTraces.has("Optimal Line (Pile Top)") ? false : true,
+                      visible: hiddenTraces.has("Optimal Line (Pile Top)") ? "legendonly" : true,
                     },
                     // Final Limits
                     {
@@ -280,8 +429,8 @@ export default function FramePage() {
                       type: "scatter",
                       mode: "lines",
                       name: "Final Max Limit (With Tolerance)",
-                      line: { color: "#D32F2F", width: 2 },
-                      visible: hiddenTraces.has("Final Max Limit (With Tolerance)") ? false : true,
+                      line: { color: "#D32F2F", width: 2, dash: "dash" },
+                      visible: hiddenTraces.has("Final Max Limit (With Tolerance)") ? "legendonly" : true,
                     },
                     {
                       x: plotData.x,
@@ -289,8 +438,8 @@ export default function FramePage() {
                       type: "scatter",
                       mode: "lines",
                       name: "Final Min Limit (With Tolerance)",
-                      line: { color: "#1976D2", width: 2 },
-                      visible: hiddenTraces.has("Final Min Limit (With Tolerance)") ? false : true,
+                      line: { color: "#1976D2", width: 2, dash: "dash" },
+                      visible: hiddenTraces.has("Final Min Limit (With Tolerance)") ? "legendonly" : true,
                     },
                     // Dashed Limits
                     {
@@ -299,8 +448,8 @@ export default function FramePage() {
                       type: "scatter",
                       mode: "lines",
                       name: "Max Limit (No Tolerance)",
-                      line: { color: "#D32F2F", width: 4, dash: "dash" },
-                      visible: hiddenTraces.has("Max Limit (No Tolerance)") ? false : true,
+                      line: { color: "rgba(255, 152, 0, 0.5)", width: 2, dash: "dot" },
+                      visible: hiddenTraces.has("Max Limit (No Tolerance)") ? "legendonly" : true,
                     },
                     {
                       x: plotData.x,
@@ -308,8 +457,8 @@ export default function FramePage() {
                       type: "scatter",
                       mode: "lines",
                       name: "Min Limit (No Tolerance)",
-                      line: { color: "#1976D2", width: 4, dash: "dash" },
-                      visible: hiddenTraces.has("Min Limit (No Tolerance)") ? false : true,
+                      line: { color: "rgba(0, 188, 212, 0.5)", width: 2, dash: "dot" },
+                      visible: hiddenTraces.has("Min Limit (No Tolerance)") ? "legendonly" : true,
                     },
                     // Labels
                     {
@@ -323,8 +472,37 @@ export default function FramePage() {
                       showlegend: false,
                       hoverinfo: "skip",
                       visible:
-                        hiddenTraces.has("Optimal Line (Pile Top)") || hiddenTraces.has("Piles") ? false : true,
+                        hiddenTraces.has("Optimal Line (Pile Top)") || hiddenTraces.has("Piles") ? "legendonly" : true,
                     },
+                    // ✅ Angle Break Traces (Roof + Text)
+                    ...(plotData.isTerrain && plotData.angleBreakRoofX.length > 0
+                      ? [
+                        {
+                          x: plotData.angleBreakRoofX,
+                          y: plotData.angleBreakRoofY,
+                          type: "scatter",
+                          mode: "lines",
+                          name: "Angle Break",
+                          line: { color: "#7B1FA2", width: 2 }, // Purple, width 2
+                          connectgaps: false,
+                          visible: hiddenTraces.has("Angle Break") ? "legendonly" : true,
+                          hoverinfo: "skip",
+                        },
+                        {
+                          x: plotData.angleBreakTextX,
+                          y: plotData.angleBreakTextY,
+                          type: "scatter",
+                          mode: "text",
+                          text: plotData.angleBreakTextVal,
+                          textfont: { size: 9, color: "#7B1FA2", weight: "bold" },
+                          name: "Angle Break Value", // grouped logically
+                          visible: hiddenTraces.has("Angle Break") ? "legendonly" : true,
+                          showlegend: false,
+                          hoverinfo: "skip",
+                        },
+                      ]
+                      : []),
+
                     // Dummy traces for legend icons
                     {
                       x: [null],
@@ -333,7 +511,7 @@ export default function FramePage() {
                       mode: "lines",
                       name: "Pile: Violation (Remaining)",
                       line: { color: "#FF4D4D", width: 4 },
-                      visible: hiddenTraces.has("Pile: Violation (Remaining)") ? false : true,
+                      visible: hiddenTraces.has("Pile: Violation (Remaining)") ? "legendonly" : true,
                     },
                     {
                       x: [null],
@@ -342,7 +520,7 @@ export default function FramePage() {
                       mode: "lines",
                       name: "Pile: Graded (Fixed)",
                       line: { color: "#FF9800", width: 4 },
-                      visible: hiddenTraces.has("Pile: Graded (Fixed)") ? false : true,
+                      visible: hiddenTraces.has("Pile: Graded (Fixed)") ? "legendonly" : true,
                     },
                     {
                       x: [null],
@@ -351,7 +529,7 @@ export default function FramePage() {
                       mode: "lines",
                       name: "Pile: OK",
                       line: { color: "#424242", width: 4 },
-                      visible: hiddenTraces.has("Pile: OK") ? false : true,
+                      visible: hiddenTraces.has("Pile: OK") ? "legendonly" : true,
                     },
                     // Actual pile posts
                     ...grading.piles.map((pile) => {
@@ -376,7 +554,7 @@ export default function FramePage() {
                         line: { color, width: 4 },
                         showlegend: false,
                         hoverinfo: "skip",
-                        visible: hiddenTraces.has(traceName) ? false : true,
+                        visible: hiddenTraces.has(traceName) ? "legendonly" : true,
                       };
                     }),
                   ]}
@@ -407,6 +585,8 @@ export default function FramePage() {
                     paper_bgcolor: "rgba(0,0,0,0)",
                     plot_bgcolor: "rgba(0,0,0,0)",
                     font: { color: "rgba(255,255,255,0.92)" },
+                    // Maintain UI state during re-renders
+                    uirevision: frameId,
                   }}
                   config={{ responsive: true, scrollZoom: true, displaylogo: false }}
                   style={{ width: "100%", height: "100%" }}
@@ -460,6 +640,28 @@ export default function FramePage() {
             </div>
 
             <div className="fp-legendList">
+              {/* Angle Break at top - hidden by default */}
+              {isTerrain && (
+                <div className="fp-legendGroup">
+                  <div className="fp-groupTitle">XTR Metrics</div>
+                  <div
+                    className={`fp-legendItem ${hiddenTraces.has("Angle Break") ? "hidden" : ""}`}
+                    onClick={() => toggleTrace("Angle Break")}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <span
+                      className="fp-line"
+                      style={{
+                        height: "3px",
+                        backgroundColor: "#7B1FA2",
+                      }}
+                    />
+                    <span>Angle Break</span>
+                  </div>
+                </div>
+              )}
+
               <div className="fp-legendGroup">
                 <div className="fp-groupTitle">Piles</div>
 

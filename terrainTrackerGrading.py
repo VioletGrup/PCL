@@ -526,7 +526,7 @@ if __name__ == "__main__":
 
     print("Loading data from Excel...")
     excel_path = "MARYVALE XTR PILING 12D DTM POINTCLOUD.xlsx"  # change if needed
-    sheet_name = "in"  # change to your actual sheet name
+    sheet_name = "Piling Information"  # change to your actual sheet name
 
     project = load_project_from_excel(
         excel_path=excel_path,

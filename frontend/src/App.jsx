@@ -13,6 +13,8 @@ import Parameters from "./pages/Parameters";
 import RunAnalysis from "./pages/RunAnalysis";
 import FramePage from "./pages/FramePage";
 import PileView from "./pages/PileView";
+import CustomUploads from "./pages/CustomUploads"
+import NorthSouthView from "./pages/NorthSouthView";
 
 export default function App() {
   /**
@@ -248,6 +250,9 @@ export default function App() {
         <Route path="/run-analysis" element={<RunAnalysis />} />
         <Route path="/frame/:frameId" element={<FramePage />} />
         <Route path="/pile/:pileId" element={<PileView />} />
+        <Route path="/customuploads" element={<CustomUploads />} />
+        <Route path="/frame/:frameId/north-south" element={<NorthSouthView />} />
+      
       </Routes>
     </BrowserRouter>
   );

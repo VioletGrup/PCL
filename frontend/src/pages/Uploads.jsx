@@ -26,16 +26,15 @@ export default function Uploads() {
   const [statusMsg, setStatusMsg] = useState("");
   const [isDragging, setIsDragging] = useState(false);
 
-  // ✅ NEW: animated center toast (stays briefly, smooth enter/exit)
+  // ✅ animated center toast
   const [toast, setToast] = useState({
     open: false,
-    visible: false, // controls animation phase
+    visible: false,
     message: "",
     variant: "info", // "info" | "success" | "error"
   });
 
-  const TOAST_IN_MS = 180;     // enter animation duration
-  const TOAST_OUT_MS = 220;    // exit animation duration
+  const TOAST_OUT_MS = 220;
   const TOAST_DEFAULT_MS = 1500;
 
   const timersRef = useRef({ in: null, out: null, hide: null });
@@ -50,15 +49,12 @@ export default function Uploads() {
 
   const showToast = (message, variant = "info", ms = TOAST_DEFAULT_MS) => {
     clearToastTimers();
-
-    // Mount immediately (open=true), then flip to visible on next tick for smooth CSS transition
     setToast({ open: true, visible: false, message, variant });
 
     timersRef.current.in = window.setTimeout(() => {
       setToast((prev) => ({ ...prev, visible: true }));
     }, 10);
 
-    // Start exit shortly before unmount
     timersRef.current.hide = window.setTimeout(() => {
       setToast((prev) => ({ ...prev, visible: false }));
       timersRef.current.out = window.setTimeout(() => {
@@ -68,9 +64,7 @@ export default function Uploads() {
   };
 
   useEffect(() => {
-    return () => {
-      clearToastTimers();
-    };
+    return () => clearToastTimers();
   }, []);
 
   function validateAndSetFile(file) {
@@ -91,10 +85,7 @@ export default function Uploads() {
     }
 
     setBomFile(file);
-
-    // ✅ Smooth centered success popup
     showToast("File uploaded successfully", "success", 1400);
-
     setStatusMsg("File ready. Click Continue to review.");
   }
 
@@ -129,7 +120,6 @@ export default function Uploads() {
       return;
     }
 
-    // small smooth confirmation
     showToast("Opening Review…", "info", 850);
 
     navigate("/review", {
@@ -142,11 +132,15 @@ export default function Uploads() {
     });
   }
 
+  function goToCustomUploads() {
+    showToast("Opening Custom Uploads…", "info", 700);
+    navigate("/customuploads");
+  }
+
   const canContinue = !!bomFile;
 
   return (
     <div className="upl-shell">
-      {/* ✅ Smooth animated center toast/overlay */}
       {toast.open && (
         <div className={`upl-toastOverlay ${toast.visible ? "is-visible" : ""}`}>
           <div
@@ -167,14 +161,12 @@ export default function Uploads() {
         </div>
       )}
 
-      {/* Background (matches App landing page) */}
       <div className="upl-bg" aria-hidden="true">
         <img src={backgroundImage} alt="" className="upl-bgImg" />
         <div className="upl-bgOverlay" />
         <div className="upl-gridOverlay" />
       </div>
 
-      {/* Header */}
       <header className="upl-header">
         <div className="upl-headerInner">
           <div className="upl-brand">
@@ -198,9 +190,7 @@ export default function Uploads() {
         </div>
       </header>
 
-      {/* Main */}
       <main className="upl-main">
-        {/* Title */}
         <div className="upl-pageTitle">
           <div className="upl-badge">
             <span className="upl-badgeDot" />
@@ -215,7 +205,6 @@ export default function Uploads() {
           </p>
         </div>
 
-        {/* Stepper */}
         <div className="upl-stepper" aria-label="Progress steps">
           <div className="upl-step is-active">
             <div className="upl-stepCircle">1</div>
@@ -246,7 +235,6 @@ export default function Uploads() {
           </div>
         </div>
 
-        {/* Card */}
         <section className="upl-card">
           <div className="upl-cardHead">
             <div>
@@ -307,7 +295,12 @@ export default function Uploads() {
             </div>
           )}
 
+          {/* ✅ NEW: Custom uploads button row */}
           <div className="upl-actions">
+            <button className="upl-btn upl-btnGhost" onClick={goToCustomUploads}>
+              Custom Uploads →
+            </button>
+
             <button
               className={`upl-btn upl-btnPrimary ${canContinue ? "" : "is-disabled"}`}
               onClick={continueToReview}
@@ -320,17 +313,15 @@ export default function Uploads() {
           <div className="upl-helper">
             <div className="upl-helperTitle">Tip</div>
             <div className="upl-helperText">
-              If your file is large, the next page may take a few seconds to load and render.
+              Use <strong>Custom Uploads</strong> if your sheet headers don’t match the standard PCL
+              template — you’ll map Frame/Pile/X/Y/Z first.
             </div>
           </div>
         </section>
       </main>
 
-      {/* Footer */}
       <footer className="upl-footer">
-        <span className="upl-footerMuted">
-          PCL Earthworks Tool • Upload → Review → Parameters
-        </span>
+        <span className="upl-footerMuted">PCL Earthworks Tool • Upload → Review → Parameters</span>
       </footer>
     </div>
   );
