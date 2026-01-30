@@ -111,9 +111,7 @@ class Project:
         pile_in_tracker = int((pile_id_dec % 1) * 100)
         return self.get_tracker_by_id(tracker_id).get_pile_in_tracker(pile_in_tracker)
 
-    def get_trackers_on_easting(
-        self, easting: float, ignore_ids: list[int]
-    ) -> list[TrackerABC]:
+    def get_trackers_on_easting(self, easting: float, ignore_ids: list[int]) -> list[TrackerABC]:
         target = float(easting)
         tol = 0.005  # rounds to 2 decimal places when comparing easting coordinate
 
@@ -130,9 +128,7 @@ class Project:
 
     def get_tracker_length(self, tracker_id: int) -> float:
         tracker = self.get_tracker_by_id(tracker_id)
-        return tracker.distance_first_to_last_pile + (
-            self.constraints.edge_overhang * 2
-        )
+        return tracker.distance_first_to_last_pile + (self.constraints.edge_overhang * 2)
 
     def get_tracker_for_pile(self, pile: BasePile) -> TrackerABC:
         """
@@ -159,3 +155,22 @@ class Project:
                 return tracker
 
         raise ValueError(f"Pile {pile.pile_id} not found in any tracker.")
+
+    def renumber_piles_by_northing(self) -> None:
+        """
+        Sort piles inside each tracker by northing (descending, north → south)
+        and update pile_in_tracker to match the new order (starting at 1).
+
+        This mutates tracker.piles and BasePile.pile_in_tracker in-place.
+        """
+
+        for tracker in self.trackers:
+            if not tracker.piles:
+                continue
+
+            # 1. Sort piles north → south
+            tracker.piles.sort(key=lambda p: p.northing, reverse=True)
+
+            # 2. Renumber pile_in_tracker to match new order
+            for i, pile in enumerate(tracker.piles, start=1):
+                pile.pile_in_tracker = i

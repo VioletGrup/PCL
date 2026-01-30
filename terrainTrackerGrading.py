@@ -474,9 +474,8 @@ def main(project: Project) -> None:
     project : Project
         Project containing trackers and grading constraints.
     """
-
-    if project.with_shading:
-        ns_requirements, ew_requirements = shading_requirements(project)
+    # ensure piles in trackers are sorted north to south
+    project.renumber_piles_by_northing()
 
     for tracker in project.trackers:
         # determine the grading window for the tracker

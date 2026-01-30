@@ -41,9 +41,7 @@ class Line2DSearchResult:
 # and _total_grading_cost are imported from grading_utils.py
 
 
-def _apply_line_to_tracker(
-    tracker: BaseTracker, slope: float, y_intercept: float
-) -> None:
+def _apply_line_to_tracker(tracker: BaseTracker, slope: float, y_intercept: float) -> None:
     """
     Loops through tracker and sets the height to fit the line
 
@@ -638,9 +636,7 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
 
                 # determine which tracker is currently sitting up higher (needed to see which
                 # direction to move the trackers)
-                north_tracker_above = (
-                    nt_south_pile.total_height - st_north_pile.total_height > 0
-                )
+                north_tracker_above = nt_south_pile.total_height - st_north_pile.total_height > 0
 
                 # test 3 different conditions and see which one requires the least grading:
                 # 1. moving the north tracker up/down the entire change  (or to grading window)
@@ -648,9 +644,7 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                 # 3. move the north and south tracker 50% of the change  (or to grading window)
                 nt_north_pile = north.get_northmost_pile()
                 st_south_pile = south.get_southmost_pile()
-                if (
-                    north_tracker_above
-                ):  # north tracker moves down, south tracker moves up
+                if north_tracker_above:  # north tracker moves down, south tracker moves up
                     # maximum distance the north tracker can be moved down to keep endpiles within
                     # the grading window
                     north_dist_to_window = min(
@@ -677,10 +671,8 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         north_movement = -change_required
                         south_movement = 0
-                    cost1, north_slope1, ny_int1, south_slope1, sy_int1 = (
-                        test_tracker_movement(
-                            project, north, south, north_movement, south_movement
-                        )
+                    cost1, north_slope1, ny_int1, south_slope1, sy_int1 = test_tracker_movement(
+                        project, north, south, north_movement, south_movement
                     )
 
                     # CASE 2: south pile moves up entirely
@@ -690,10 +682,8 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         south_movement = change_required
                         north_movement = 0
-                    cost2, north_slope2, ny_int2, south_slope2, sy_int2 = (
-                        test_tracker_movement(
-                            project, north, south, north_movement, south_movement
-                        )
+                    cost2, north_slope2, ny_int2, south_slope2, sy_int2 = test_tracker_movement(
+                        project, north, south, north_movement, south_movement
                     )
 
                     # CASE 3: north and south piles move equal amounts
@@ -707,10 +697,8 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         north_movement = -half_change
                         south_movement = half_change
-                    cost3, north_slope3, ny_int3, south_slope3, sy_int3 = (
-                        test_tracker_movement(
-                            project, north, south, north_movement, south_movement
-                        )
+                    cost3, north_slope3, ny_int3, south_slope3, sy_int3 = test_tracker_movement(
+                        project, north, south, north_movement, south_movement
                     )
 
                     # apply the line that produces the least grading costs
@@ -751,10 +739,8 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         north_movement = change_required
                         south_movement = 0
-                    cost1, north_slope1, ny_int1, south_slope1, sy_int1 = (
-                        test_tracker_movement(
-                            project, north, south, north_movement, south_movement
-                        )
+                    cost1, north_slope1, ny_int1, south_slope1, sy_int1 = test_tracker_movement(
+                        project, north, south, north_movement, south_movement
                     )
 
                     # CASE 2: south pile moves up entirely
@@ -764,10 +750,8 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         south_movement = -change_required
                         north_movement = 0
-                    cost2, north_slope2, ny_int2, south_slope2, sy_int2 = (
-                        test_tracker_movement(
-                            project, north, south, north_movement, south_movement
-                        )
+                    cost2, north_slope2, ny_int2, south_slope2, sy_int2 = test_tracker_movement(
+                        project, north, south, north_movement, south_movement
                     )
 
                     # CASE 3: north and south piles move equal amounts
@@ -781,10 +765,8 @@ def apply_ns_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         north_movement = half_change
                         south_movement = -half_change
-                    cost3, north_slope3, ny_int3, south_slope3, sy_int3 = (
-                        test_tracker_movement(
-                            project, north, south, north_movement, south_movement
-                        )
+                    cost3, north_slope3, ny_int3, south_slope3, sy_int3 = test_tracker_movement(
+                        project, north, south, north_movement, south_movement
                     )
 
                     # apply the line that produces the least grading costs
@@ -817,9 +799,7 @@ def apply_ew_analysis(project: Project, requirements: dict[str, float]) -> None:
                 abs(height_diff) > requirements["ew_max_pile_height_diff"]
                 or abs(current_slope) > requirements["ew_max_slope_percent"]
             ):
-                height_diff_for_slope = (
-                    current_gap * requirements["ew_max_slope_percent"]
-                )
+                height_diff_for_slope = current_gap * requirements["ew_max_slope_percent"]
                 required_height_diff = min(
                     requirements["ew_max_pile_height_diff"], height_diff_for_slope
                 )
@@ -865,14 +845,12 @@ def apply_ew_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         east_movement = -change_required
                         west_movement = 0
-                    cost1, east_slope1, ey_int1, west_slope1, wy_int1 = (
-                        test_tracker_movement(
-                            project,
-                            east_tracker,
-                            west_tracker,
-                            east_movement,
-                            west_movement,
-                        )
+                    cost1, east_slope1, ey_int1, west_slope1, wy_int1 = test_tracker_movement(
+                        project,
+                        east_tracker,
+                        west_tracker,
+                        east_movement,
+                        west_movement,
                     )
 
                     # CASE 2: west pile moves up entirely
@@ -882,14 +860,12 @@ def apply_ew_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         west_movement = change_required
                         east_movement = 0
-                    cost2, east_slope2, ey_int2, west_slope2, wy_int2 = (
-                        test_tracker_movement(
-                            project,
-                            east_tracker,
-                            west_tracker,
-                            east_movement,
-                            west_movement,
-                        )
+                    cost2, east_slope2, ey_int2, west_slope2, wy_int2 = test_tracker_movement(
+                        project,
+                        east_tracker,
+                        west_tracker,
+                        east_movement,
+                        west_movement,
                     )
 
                     # CASE 3: east and west piles move equal amounts
@@ -903,14 +879,12 @@ def apply_ew_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         east_movement = -half_change
                         west_movement = half_change
-                    cost3, east_slope3, ey_int3, west_slope3, wy_int3 = (
-                        test_tracker_movement(
-                            project,
-                            east_tracker,
-                            west_tracker,
-                            east_movement,
-                            west_movement,
-                        )
+                    cost3, east_slope3, ey_int3, west_slope3, wy_int3 = test_tracker_movement(
+                        project,
+                        east_tracker,
+                        west_tracker,
+                        east_movement,
+                        west_movement,
                     )
 
                     # apply the line that produces the least grading costs
@@ -951,14 +925,12 @@ def apply_ew_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         east_movement = change_required
                         west_movement = 0
-                    cost1, east_slope1, ey_int1, west_slope1, wy_int1 = (
-                        test_tracker_movement(
-                            project,
-                            east_tracker,
-                            west_tracker,
-                            east_movement,
-                            west_movement,
-                        )
+                    cost1, east_slope1, ey_int1, west_slope1, wy_int1 = test_tracker_movement(
+                        project,
+                        east_tracker,
+                        west_tracker,
+                        east_movement,
+                        west_movement,
                     )
 
                     # CASE 2: west pile moves up entirely
@@ -968,14 +940,12 @@ def apply_ew_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         west_movement = -change_required
                         east_movement = 0
-                    cost2, east_slope2, ey_int2, west_slope2, wy_int2 = (
-                        test_tracker_movement(
-                            project,
-                            east_tracker,
-                            west_tracker,
-                            east_movement,
-                            west_movement,
-                        )
+                    cost2, east_slope2, ey_int2, west_slope2, wy_int2 = test_tracker_movement(
+                        project,
+                        east_tracker,
+                        west_tracker,
+                        east_movement,
+                        west_movement,
                     )
 
                     # CASE 3: east and west piles move equal amounts
@@ -989,14 +959,12 @@ def apply_ew_analysis(project: Project, requirements: dict[str, float]) -> None:
                     else:
                         east_movement = half_change
                         west_movement = -half_change
-                    cost3, east_slope3, ey_int3, west_slope3, wy_int3 = (
-                        test_tracker_movement(
-                            project,
-                            east_tracker,
-                            west_tracker,
-                            east_movement,
-                            west_movement,
-                        )
+                    cost3, east_slope3, ey_int3, west_slope3, wy_int3 = test_tracker_movement(
+                        project,
+                        east_tracker,
+                        west_tracker,
+                        east_movement,
+                        west_movement,
                     )
 
                     # apply the line that produces the least grading costs
@@ -1124,6 +1092,9 @@ def main(project: Project) -> None:
     None
         Mutates the piles within `project.trackers` in-place.
     """
+    # ensure piles in trackers are sorted north to south
+    project.renumber_piles_by_northing()
+
     for tracker in project.trackers:
         if not tracker.piles:
             continue  # skip to the next tracker if the current one is empty
@@ -1140,8 +1111,7 @@ def main(project: Project) -> None:
 
         if piles_outside:
             window_half = (
-                piles_outside[0]["grading_window_max"]
-                - piles_outside[0]["grading_window_min"]
+                piles_outside[0]["grading_window_max"] - piles_outside[0]["grading_window_min"]
             ) / 2.0
 
             intercept_span = max(1e-6, 4.0 * window_half)
